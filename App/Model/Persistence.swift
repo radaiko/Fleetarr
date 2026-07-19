@@ -1,6 +1,9 @@
 import Foundation
 import SwiftData
 import Security
+import os
+
+private let persistenceLog = Logger(subsystem: "dev.radaiko.Fleetarr", category: "Persistence")
 
 /// Builds the SwiftData `ModelContainer`, choosing CloudKit sync vs. local-only at creation time
 /// and always degrading to a working local store so the app never dead-launches (spec §3.5).
@@ -13,23 +16,26 @@ enum Persistence {
     static func makeContainer(syncEnabled: Bool) -> ModelContainer {
         let schema = Schema([InstanceRecord.self])
 
-        // Only sync when: the user opted in, an iCloud account is available, AND the app actually
-        // carries the CloudKit entitlement. The last check matters because enabling CloudKit
-        // without the entitlement (unsigned / dev builds) makes CloudKit *trap on a background
-        // thread* during mirroring setup — which no `try?` around the init can catch. Deciding the
-        // config at creation time (never mutating a live container) also avoids the
-        // loadIssueModelContainer crash from flipping .none -> .private on an existing store.
-        let hasICloud = FileManager.default.ubiquityIdentityToken != nil
+        // Enable CloudKit when the user opted in AND the app is signed with the CloudKit entitlement.
+        // The entitlement check matters because enabling CloudKit *without* it (unsigned/dev builds)
+        // makes CloudKit trap on a background thread during mirroring setup — which no `try?` around
+        // the init can catch. Do NOT additionally gate on `FileManager.ubiquityIdentityToken`: that
+        // token reflects iCloud *Drive/Documents* (ubiquity containers), which this app doesn't use,
+        // so it is nil even with a valid iCloud account + CloudKit access — gating on it silently
+        // disables sync. If the account is unavailable, CloudKit mirroring just stays idle (no crash).
         let hasCloudKitEntitlement = hasEntitlement("com.apple.developer.icloud-container-identifiers")
-        let shouldSync = syncEnabled && hasICloud && hasCloudKitEntitlement
+        let shouldSync = syncEnabled && hasCloudKitEntitlement
+        persistenceLog.notice("makeContainer syncEnabled=\(syncEnabled, privacy: .public) hasCKEntitlement=\(hasCloudKitEntitlement, privacy: .public) shouldSync=\(shouldSync, privacy: .public)")
 
         let primary = ModelConfiguration(
             schema: schema,
             isStoredInMemoryOnly: false,
             cloudKitDatabase: shouldSync ? .private(cloudKitContainerID) : .none
         )
-        if let container = try? ModelContainer(for: schema, configurations: primary) {
-            return container
+        do {
+            return try ModelContainer(for: schema, configurations: primary)
+        } catch {
+            persistenceLog.error("primary (CloudKit) container failed: \(String(describing: error), privacy: .public) — falling back to local")
         }
 
         // CloudKit unavailable (e.g. missing entitlement in a dev build) → local-only.

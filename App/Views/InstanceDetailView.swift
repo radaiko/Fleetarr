@@ -20,7 +20,7 @@ struct InstanceDetailView: View {
 
     var body: some View {
         List {
-            statusSection
+            headerSection
             problemsSection
             primaryActivitySection
             listingSections
@@ -80,23 +80,18 @@ struct InstanceDetailView: View {
 
     // MARK: Sections
 
-    @ViewBuilder private var statusSection: some View {
-        Section("Status") {
-            StatusIndicator(state: configured ? (status?.health ?? .unknown) : .unknown)
-            if !configured {
-                Label("No credentials stored for this instance", systemImage: "key.slash")
-                    .font(.caption)
-                    .foregroundStyle(.orange)
-            }
-            if let summary = status?.summaryLine {
-                Text(summary).foregroundStyle(.secondary)
-            }
-            if let chips = status?.headline, !chips.isEmpty {
-                ScrollView(.horizontal) {
-                    HStack(spacing: 6) { ForEach(chips) { MetricChipView(chip: $0) } }
-                }
-                .scrollIndicators(.hidden)
-            }
+    @ViewBuilder private var headerSection: some View {
+        Section {
+            DetailHeader(
+                instance: instance,
+                health: configured ? (status?.health ?? .unknown) : .unknown,
+                configured: configured,
+                summary: status?.summaryLine,
+                chips: status?.headline ?? []
+            )
+            .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 12, trailing: 16))
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
         }
     }
 
@@ -363,6 +358,71 @@ private enum PendingAction: Identifiable {
         case let .remove(_, blocklist): blocklist ? "Remove & Blocklist" : "Remove"
         case .stop: "Stop Stream"
         }
+    }
+}
+
+/// The detail screen's health hero: a service badge tinted by state, the current verdict, a summary
+/// line, and the headline metric chips — echoing the dashboard card so the two screens feel like one
+/// app. Calm and neutral while healthy; tinted when the instance needs attention (spec §9.6).
+private struct DetailHeader: View {
+    let instance: FleetInstance
+    let health: HealthState
+    let configured: Bool
+    let summary: String?
+    let chips: [MetricChip]
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var troubled: Bool { !configured || health.isProblem }
+    private var tint: Color { configured ? health.tint : .orange }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 14) {
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(troubled ? tint.opacity(0.16) : Color.primary.opacity(colorScheme == .dark ? 0.09 : 0.055))
+                    .frame(width: 60, height: 60)
+                    .overlay(
+                        Image(systemName: instance.serviceType.systemImageName)
+                            .font(.system(size: 26, weight: .medium))
+                            .foregroundStyle(troubled ? AnyShapeStyle(tint) : AnyShapeStyle(.secondary))
+                    )
+
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 6) {
+                        Image(systemName: configured ? health.systemImageName : "minus.circle.fill")
+                            .symbolRenderingMode(.hierarchical)
+                            .foregroundStyle(configured
+                                ? (health == .healthy ? AnyShapeStyle(Color.green) : AnyShapeStyle(health.tint))
+                                : AnyShapeStyle(Color.orange))
+                        Text(configured ? health.displayLabel : "Not configured")
+                            .font(.headline)
+                    }
+                    Text(subtitle)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+                Spacer(minLength: 0)
+            }
+
+            if !chips.isEmpty {
+                ScrollView(.horizontal) {
+                    HStack(spacing: 6) { ForEach(chips) { MetricChipView(chip: $0) } }
+                }
+                .scrollIndicators(.hidden)
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .modifier(CardSurface(cornerRadius: 20, tint: troubled ? tint : nil))
+        .accessibilityElement(children: .combine)
+    }
+
+    private var subtitle: String {
+        if !configured { return "Add credentials in Settings to monitor this instance." }
+        if let summary, !summary.isEmpty { return summary }
+        return instance.serviceType.displayName
     }
 }
 

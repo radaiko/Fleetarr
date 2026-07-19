@@ -1,9 +1,11 @@
 import SwiftUI
 import FleetarrKit
 
-/// A compact dashboard card for one instance (spec §5). Design intent: the grid stays calm and
-/// grayscale while everything is healthy; a troubled instance announces itself through its status
-/// rail and colored metrics. The numbers are the hero — large, rounded, monospaced.
+/// A dashboard card for one instance (spec §5). Phone-native: a tactile rounded card led by a
+/// service badge, with the instance's headline metrics as the hero content. It stays calm and
+/// neutral while healthy; a troubled instance announces itself through a status-tinted badge, a
+/// soft card wash, and its glyph — never through hue alone (color is always paired with an icon and
+/// text, spec §9.6). Shared across platforms: one column on phone, a grid tile on Mac/iPad.
 struct InstanceCardView: View {
     let instance: FleetInstance
     let status: InstanceStatus?
@@ -16,28 +18,41 @@ struct InstanceCardView: View {
         configured ? (status?.health ?? .unknown) : .unknown
     }
 
-    var body: some View {
-        HStack(spacing: 0) {
-            RoundedRectangle(cornerRadius: 2, style: .continuous)
-                .fill(railColor)
-                .frame(width: 3)
-                .padding(.vertical, 11)
+    /// Whether the instance needs a second look — drives the tinted (vs. calm neutral) treatment.
+    private var troubled: Bool {
+        !configured || health == .warning || health == .error || health == .unreachable
+    }
 
-            VStack(alignment: .leading, spacing: 12) {
-                header
-                Spacer(minLength: 0)
-                metrics
+    /// The one color that expresses this card's state (only used when `troubled`).
+    private var accent: Color {
+        configured ? health.tint : .orange
+    }
+
+    private var metricChips: [MetricChip] {
+        guard configured, health != .unreachable else { return [] }
+        return Array((status?.headline ?? []).prefix(3))
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: metricChips.isEmpty ? 0 : 14) {
+            headerRow
+            if !metricChips.isEmpty {
+                HStack(alignment: .firstTextBaseline, spacing: 22) {
+                    ForEach(metricChips) { statPair($0) }
+                    Spacer(minLength: 0)
+                }
             }
-            .padding(.horizontal, 13)
-            .padding(.vertical, 12)
         }
-        .frame(minHeight: 96, alignment: .top)
-        .background(cardFill, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(cardSurface)
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.06), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .strokeBorder(troubled ? accent.opacity(0.28) : Color.primary.opacity(0.06), lineWidth: 1)
         )
-        .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .shadow(color: .black.opacity(colorScheme == .dark ? 0.0 : 0.06), radius: 7, y: 3)
+        .contentShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
         #if os(macOS)
         .onHover { hovering = $0 }
         .animation(.easeOut(duration: 0.14), value: hovering)
@@ -48,51 +63,49 @@ struct InstanceCardView: View {
 
     // MARK: Header
 
-    private var header: some View {
-        HStack(spacing: 8) {
-            Image(systemName: instance.serviceType.systemImageName)
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .frame(width: 18)
-            Text(instance.label)
-                .font(.subheadline.weight(.semibold))
-                .lineLimit(1)
-            Spacer(minLength: 4)
+    private var headerRow: some View {
+        HStack(spacing: 12) {
+            iconBadge
+            VStack(alignment: .leading, spacing: 2) {
+                Text(instance.label)
+                    .font(.headline)
+                    .lineLimit(1)
+                Text(subtitle)
+                    .font(.subheadline)
+                    .foregroundStyle(troubled ? AnyShapeStyle(accent) : AnyShapeStyle(.secondary))
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 8)
             statusGlyph
+            Image(systemName: "chevron.right")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.tertiary)
         }
+    }
+
+    private var iconBadge: some View {
+        RoundedRectangle(cornerRadius: 13, style: .continuous)
+            .fill(troubled ? accent.opacity(0.16) : Color.primary.opacity(colorScheme == .dark ? 0.09 : 0.055))
+            .frame(width: 46, height: 46)
+            .overlay(
+                Image(systemName: instance.serviceType.systemImageName)
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundStyle(troubled ? AnyShapeStyle(accent) : AnyShapeStyle(.secondary))
+            )
     }
 
     @ViewBuilder private var statusGlyph: some View {
         if !configured {
-            Image(systemName: "minus.circle")
-                .font(.footnote)
-                .foregroundStyle(.tertiary)
+            Image(systemName: "minus.circle.fill")
+                .foregroundStyle(.orange)
         } else {
             Image(systemName: health.systemImageName)
-                .font(.footnote)
                 .symbolRenderingMode(.hierarchical)
-                .foregroundStyle(health == .healthy ? AnyShapeStyle(.secondary) : AnyShapeStyle(health.tint))
+                .foregroundStyle(health == .healthy ? AnyShapeStyle(Color.green) : AnyShapeStyle(health.tint))
         }
     }
 
-    // MARK: Metrics
-
-    @ViewBuilder private var metrics: some View {
-        if !configured {
-            caption("Not configured", color: .orange)
-        } else if health == .unreachable {
-            caption(status?.summaryLine ?? "Unreachable", color: .orange)
-        } else if let chips = status?.headline, !chips.isEmpty {
-            HStack(alignment: .firstTextBaseline, spacing: 16) {
-                ForEach(chips.prefix(3)) { chip in
-                    statPair(chip)
-                }
-                Spacer(minLength: 0)
-            }
-        } else {
-            caption(status?.summaryLine ?? "—", color: .secondary)
-        }
-    }
+    // MARK: Metrics — the numbers are the hero
 
     private func statPair(_ chip: MetricChip) -> some View {
         VStack(alignment: .leading, spacing: 2) {
@@ -110,24 +123,12 @@ struct InstanceCardView: View {
         }
     }
 
-    private func caption(_ text: String, color: Color) -> some View {
-        Text(text)
-            .font(.caption)
-            .foregroundStyle(color)
-            .lineLimit(1)
-            .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
     // MARK: Styling
 
-    private var railColor: Color {
-        switch health {
-        case .healthy: return .green.opacity(0.55)
-        case .warning: return .yellow
-        case .error: return .red
-        case .unreachable: return .orange
-        case .unknown: return .gray.opacity(0.35)
-        }
+    private var subtitle: String {
+        if !configured { return "Not configured" }
+        if let line = status?.summaryLine, !line.isEmpty { return line }
+        return health == .unknown ? "Not checked yet" : health.displayLabel
     }
 
     private func valueColor(_ chip: MetricChip) -> Color {
@@ -138,9 +139,22 @@ struct InstanceCardView: View {
         }
     }
 
-    private var cardFill: Color {
-        let base = colorScheme == .dark ? 0.055 : 0.028
-        return Color.primary.opacity(hovering ? base + 0.04 : base)
+    private var cardSurface: some View {
+        ZStack {
+            baseSurface
+            if troubled { accent.opacity(0.09) }
+            #if os(macOS)
+            if hovering { Color.primary.opacity(0.04) }
+            #endif
+        }
+    }
+
+    private var baseSurface: Color {
+        #if os(iOS)
+        Color(.secondarySystemGroupedBackground)
+        #else
+        Color(nsColor: .controlBackgroundColor)
+        #endif
     }
 
     private var accessibilityText: String {
@@ -149,9 +163,7 @@ struct InstanceCardView: View {
             parts.append("not configured")
         } else {
             parts.append(health.displayLabel)
-            if let chips = status?.headline {
-                parts.append(contentsOf: chips.prefix(3).map { "\($0.value) \($0.label)" })
-            }
+            parts.append(contentsOf: metricChips.map { "\($0.value) \($0.label)" })
         }
         return parts.joined(separator: ", ")
     }

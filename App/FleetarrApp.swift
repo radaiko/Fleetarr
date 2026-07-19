@@ -11,7 +11,13 @@ struct FleetarrApp: App {
         let syncEnabled = UserDefaults.standard.object(forKey: "syncEnabled") as? Bool ?? true
         let container = Persistence.makeContainer(syncEnabled: syncEnabled)
         _container = State(initialValue: container)
-        _store = State(initialValue: FleetStore(context: container.mainContext))
+        let store = FleetStore(context: container.mainContext)
+        #if DEBUG
+        // `--demo` seeds representative multi-state data for design work / screenshots (no network,
+        // no store writes). Never present in release builds.
+        if CommandLine.arguments.contains("--demo") { store.loadDemoData() }
+        #endif
+        _store = State(initialValue: store)
 
         Analytics.start()
         Analytics.appLaunched()

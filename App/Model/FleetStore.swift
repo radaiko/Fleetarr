@@ -1,4 +1,5 @@
 import Foundation
+import CoreData
 import Observation
 import SwiftData
 import WidgetKit
@@ -31,6 +32,16 @@ final class FleetStore {
     /// ad-hoc/unsigned builds. `.some(nil)` means "checked, none stored".
     private var credentialCache: [UUID: String?] = [:]
 
+    /// Token for the CloudKit remote-change observer (removed on deinit).
+    private var remoteChangeObserver: (any NSObjectProtocol)?
+
+    #if DEBUG
+    /// When true the store is showing built-in demo data (`--demo` launch arg) so `refresh()` is a
+    /// no-op — the mock statuses aren't overwritten and no network is hit. Design/screenshot aid
+    /// only; compiled out of release builds.
+    private(set) var isDemo = false
+    #endif
+
     init(
         context: ModelContext,
         keychain: KeychainStore = KeychainStore(),
@@ -40,6 +51,28 @@ final class FleetStore {
         self.keychain = keychain
         self.factory = factory
         reload()
+        observeRemoteChanges()
+    }
+
+    /// CloudKit mirroring persists imported changes and posts `NSPersistentStoreRemoteChange` when
+    /// instances added on another device arrive. Re-fetch (and re-poll) so they appear live, without
+    /// an app restart — the store-backed `instances` list is otherwise only populated in `init`, so
+    /// a backgrounded app would show a stale (often empty) dashboard until relaunch (spec §3.5).
+    private func observeRemoteChanges() {
+        remoteChangeObserver = NotificationCenter.default.addObserver(
+            forName: .NSPersistentStoreRemoteChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                guard let self else { return }
+                #if DEBUG
+                if self.isDemo { return }
+                #endif
+                self.reload()
+                await self.refresh()
+            }
+        }
     }
 
     // MARK: Derived
@@ -79,11 +112,70 @@ final class FleetStore {
         return secret
     }
 
+    #if DEBUG
+    /// Populates the dashboard with representative multi-state demo data (healthy-with-metrics,
+    /// warning, error, unreachable) for design work and screenshots, triggered by the `--demo`
+    /// launch argument. Sets `isDemo` so `refresh()` becomes a no-op and the mock statuses persist.
+    /// Compiled out of release builds.
+    func loadDemoData() {
+        isDemo = true
+        let demo: [(FleetInstance, InstanceStatus)] = [
+            (FleetInstance(serviceType: .plex, label: "Plex", baseURLString: "https://plex.demo", sortOrder: 1),
+             InstanceStatus(health: .healthy, headline: [
+                MetricChip(label: "Streams", value: "3", systemImageName: "play.tv"),
+                MetricChip(label: "Transcode", value: "1", systemImageName: "arrow.triangle.2.circlepath"),
+             ], summaryLine: "3 streaming now")),
+            (FleetInstance(serviceType: .sonarr, label: "Sonarr", baseURLString: "https://sonarr.demo", sortOrder: 2),
+             InstanceStatus(health: .healthy, headline: [
+                MetricChip(label: "Queue", value: "2", systemImageName: "arrow.down.circle"),
+                MetricChip(label: "Missing", value: "14", systemImageName: "tv"),
+             ])),
+            (FleetInstance(serviceType: .sabnzbd, label: "SABnzbd", baseURLString: "https://sab.demo", sortOrder: 3),
+             InstanceStatus(health: .healthy, headline: [
+                MetricChip(label: "Speed", value: "24 MB/s", systemImageName: "speedometer"),
+                MetricChip(label: "Queue", value: "5", systemImageName: "tray.full"),
+             ], summaryLine: "Downloading")),
+            (FleetInstance(serviceType: .seerr, label: "Seerr", baseURLString: "https://seerr.demo", sortOrder: 4),
+             InstanceStatus(health: .healthy, headline: [
+                MetricChip(label: "Pending", value: "4", systemImageName: "tray.and.arrow.down"),
+             ], summaryLine: "4 requests pending")),
+            (FleetInstance(serviceType: .radarr, label: "Radarr", baseURLString: "https://radarr.demo", sortOrder: 5),
+             InstanceStatus(health: .warning, headline: [
+                MetricChip(label: "Queue", value: "1", systemImageName: "arrow.down.circle", emphasis: .warning),
+                MetricChip(label: "Missing", value: "8", systemImageName: "film.stack"),
+             ], problems: [Problem(severity: .warning, title: "Stalled download", detail: "1 item stalled", source: "queue")],
+             summaryLine: "1 download stalled")),
+            (FleetInstance(serviceType: .prowlarr, label: "Prowlarr", baseURLString: "https://prowlarr.demo", sortOrder: 6),
+             InstanceStatus(health: .error, headline: [
+                MetricChip(label: "Indexers", value: "1", systemImageName: "exclamationmark.triangle", emphasis: .error),
+             ], problems: [Problem(severity: .error, title: "Indexer down", detail: "1 indexer failing", source: "health")],
+             summaryLine: "1 indexer failing")),
+            (FleetInstance(serviceType: .jellyfin, label: "Jellyfin", baseURLString: "https://jellyfin.demo", sortOrder: 7),
+             InstanceStatus(health: .unreachable,
+             problems: [Problem(severity: .error, title: "Unreachable", detail: "Connection timed out", source: "connection")],
+             summaryLine: "Connection timed out")),
+        ]
+        instances = demo.map(\.0)
+        statuses = Dictionary(uniqueKeysWithValues: demo.map { ($0.0.id, $0.1) })
+        configuredInstanceIDs = Set(demo.map { $0.0.id })
+        lastRefresh = .now
+    }
+    #endif
+
     // MARK: Refresh (concurrent, spec §3.2 / §9.2)
 
     func refresh() async {
+        #if DEBUG
+        if isDemo { return }
+        #endif
         isRefreshing = true
         defer { isRefreshing = false }
+
+        // Re-read the instance list from the store first. It's only otherwise populated in `init`,
+        // so instances synced from another device via CloudKit (or edited elsewhere) would stay
+        // invisible until an app restart. This is a cheap local fetch and runs on every foreground
+        // (`.task(id: scenePhase)`) and pull-to-refresh.
+        reload()
 
         // Read every needed secret once (on the main actor, from the cache), then hand the
         // credential closure a plain dictionary — so it never touches the Keychain (or main-actor

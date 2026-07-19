@@ -50,6 +50,46 @@ extension ServiceType {
     var supportsSessionTermination: Bool { self == .plex || self == .jellyfin }
 }
 
+/// A rounded "card surface" for the dashboard hero and detail header: **Liquid Glass** on
+/// iOS/macOS 26, and a solid grouped-cell fill with a hairline border + soft shadow on earlier OSes.
+/// Reserved for the screen's hero element — the content cells stay solid, which is the native iOS 26
+/// hierarchy (glass floats above content, it doesn't tile it). An optional `tint` conveys a troubled
+/// state (always paired with an icon + text elsewhere, never hue alone — spec §9.6).
+struct CardSurface: ViewModifier {
+    var cornerRadius: CGFloat = 20
+    var tint: Color?
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, macOS 26.0, *) {
+            content.glassEffect(glass, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+        } else {
+            content
+                .background(solid, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .strokeBorder((tint ?? .primary).opacity(tint == nil ? 0.06 : 0.28), lineWidth: 1)
+                )
+                .shadow(color: .black.opacity(colorScheme == .dark ? 0.0 : 0.06), radius: 8, y: 3)
+        }
+    }
+
+    @available(iOS 26.0, macOS 26.0, *)
+    private var glass: Glass {
+        guard let tint else { return .regular }
+        return .regular.tint(tint.opacity(0.22))
+    }
+
+    private var solid: Color {
+        #if os(iOS)
+        Color(.secondarySystemGroupedBackground)
+        #else
+        Color(nsColor: .controlBackgroundColor)
+        #endif
+    }
+}
+
 /// A status glyph combining color + icon + (optional) text label (spec §9.6).
 struct StatusIndicator: View {
     let state: HealthState

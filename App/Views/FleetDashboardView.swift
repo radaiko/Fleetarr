@@ -1,8 +1,8 @@
 import SwiftUI
 import FleetarrKit
 
-/// The Fleet home screen (spec §5): a slim health header (the thesis — "is everything OK?") over a
-/// responsive grid of compact instance cards, ordered so anything needing attention floats to the
+/// The Fleet home screen (spec §5): a health hero that answers "is everything OK?" at a glance, over
+/// attention-grouped instance cards — anything troubled floats into a "Needs attention" section on
 /// top. Pull-to-refresh, plus auto-refresh that pauses when backgrounded.
 struct FleetDashboardView: View {
     @Environment(FleetStore.self) private var store
@@ -10,34 +10,40 @@ struct FleetDashboardView: View {
     @AppStorage("refreshIntervalSeconds") private var refreshInterval: Double = 60
     @State private var showingSettings = false
 
-    private let columns = [GridItem(.adaptive(minimum: 285, maximum: 440), spacing: 12)]
+    private let columns = [GridItem(.adaptive(minimum: 330, maximum: 460), spacing: 12)]
 
     var body: some View {
         ScrollView {
             if store.dashboardInstances.isEmpty {
                 emptyState
             } else {
-                VStack(alignment: .leading, spacing: 18) {
-                    summaryHeader
-                    LazyVGrid(columns: columns, spacing: 12) {
-                        ForEach(sortedInstances) { instance in
-                            NavigationLink {
-                                InstanceDetailView(instance: instance)
-                            } label: {
-                                InstanceCardView(
-                                    instance: instance,
-                                    status: store.status(for: instance),
-                                    configured: store.hasStoredSecret(for: instance)
-                                )
-                            }
-                            .buttonStyle(.plain)
+                LazyVStack(alignment: .leading, spacing: 20) {
+                    FleetHealthHeader(
+                        summary: store.summary,
+                        serviceCount: store.dashboardInstances.count,
+                        attentionCount: troubledInstances.count,
+                        lastRefresh: store.lastRefresh,
+                        isRefreshing: store.isRefreshing
+                    )
+                    if troubledInstances.isEmpty {
+                        grid(sortedInstances)
+                    } else {
+                        section("Needs attention", troubledInstances)
+                        if !healthyInstances.isEmpty {
+                            section("Everything else", healthyInstances)
                         }
                     }
                 }
-                .padding(18)
+                .padding(.horizontal, 16)
+                .padding(.top, 6)
+                .padding(.bottom, 28)
             }
         }
+        .background(groupedBackground)
         .navigationTitle("Fleet")
+        #if os(iOS)
+        .navigationBarTitleDisplayMode(.inline)
+        #endif
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
@@ -70,38 +76,34 @@ struct FleetDashboardView: View {
         }
     }
 
-    // MARK: Header (the thesis)
+    // MARK: Sections
 
-    private var summaryHeader: some View {
-        let summary = store.summary
-        let clear = summary.problemBadgeCount == 0
-        return HStack(alignment: .center, spacing: 10) {
-            Circle()
-                .fill(clear ? Color.green : summary.worstHealth.tint)
-                .frame(width: 9, height: 9)
-            Text(clear ? "All clear" : "^[\(summary.problemBadgeCount) problem](inflect: true)")
-                .font(.title2.weight(.semibold))
-            if summary.unreachableCount > 0 {
-                Text("· ^[\(summary.unreachableCount) unreachable](inflect: true)")
-                    .font(.subheadline)
-                    .foregroundStyle(.orange)
-            }
-            Spacer()
-            VStack(alignment: .trailing, spacing: 1) {
-                Text("^[\(store.dashboardInstances.count) service](inflect: true)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                if let last = store.lastRefresh {
-                    Text("updated \(last.formatted(.relative(presentation: .named)))")
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
+    private func section(_ title: String, _ items: [FleetInstance]) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(title)
+                .font(.footnote.weight(.semibold))
+                .textCase(.uppercase)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 4)
+            grid(items)
+        }
+    }
+
+    private func grid(_ items: [FleetInstance]) -> some View {
+        LazyVGrid(columns: columns, spacing: 12) {
+            ForEach(items) { instance in
+                NavigationLink {
+                    InstanceDetailView(instance: instance)
+                } label: {
+                    InstanceCardView(
+                        instance: instance,
+                        status: store.status(for: instance),
+                        configured: store.hasStoredSecret(for: instance)
+                    )
                 }
-            }
-            if store.isRefreshing {
-                ProgressView().controlSize(.small)
+                .buttonStyle(.plain)
             }
         }
-        .accessibilityElement(children: .combine)
     }
 
     // MARK: Ordering — attention first
@@ -114,20 +116,99 @@ struct FleetDashboardView: View {
         }
     }
 
+    private var troubledInstances: [FleetInstance] { sortedInstances.filter(isTroubled) }
+    private var healthyInstances: [FleetInstance] { sortedInstances.filter { !isTroubled($0) } }
+
+    private func isTroubled(_ instance: FleetInstance) -> Bool {
+        guard store.hasStoredSecret(for: instance) else { return true }
+        return (store.status(for: instance)?.health ?? .unknown).isProblem
+    }
+
     private func attentionScore(_ instance: FleetInstance) -> Int {
         let configured = store.hasStoredSecret(for: instance)
         let health = configured ? (store.status(for: instance)?.health ?? .unknown) : .unknown
         let badge = store.status(for: instance)?.badgeCount ?? 0
-        // Higher = more attention. Warning/error/unreachable outrank healthy; badge count breaks ties.
-        return health.severityRank * 1000 + badge
+        // Higher = more attention. Unconfigured sits just above healthy so it's visible but not
+        // alarming; real problems (warning/error/unreachable) outrank it; badge count breaks ties.
+        let base = configured ? health.severityRank : (HealthState.healthy.severityRank + 1)
+        return base * 1000 + badge
     }
+
+    // MARK: Empty state
 
     private var emptyState: some View {
         ContentUnavailableView {
-            Label("No services yet", systemImage: "square.grid.2x2")
+            Label("No services yet", systemImage: "square.stack.3d.up")
         } description: {
-            Text("Add your Sonarr, Radarr, SABnzbd, Plex and other instances in Settings to see them here.")
+            Text("Add your Sonarr, Radarr, SABnzbd, Plex and other instances to watch their health here.")
+        } actions: {
+            Button("Add a service") { showingSettings = true }
+                .buttonStyle(.borderedProminent)
         }
         .padding(.top, 60)
+    }
+
+    private var groupedBackground: some ShapeStyle {
+        #if os(iOS)
+        return Color(.systemGroupedBackground)
+        #else
+        return Color(nsColor: .windowBackgroundColor)
+        #endif
+    }
+}
+
+// MARK: - Health hero (the thesis)
+
+/// The dashboard's thesis: a glanceable verdict on the whole fleet. A soft status "orb" plus a bold
+/// headline answer "is everything OK?" before the eye reaches any card.
+private struct FleetHealthHeader: View {
+    let summary: FleetSummary
+    let serviceCount: Int
+    let attentionCount: Int
+    let lastRefresh: Date?
+    let isRefreshing: Bool
+
+    private var clear: Bool { attentionCount == 0 }
+    private var tint: Color { clear ? .green : summary.worstHealth.tint }
+    private var symbol: String { clear ? "checkmark.circle.fill" : summary.worstHealth.systemImageName }
+
+    var body: some View {
+        HStack(spacing: 16) {
+            ZStack {
+                Circle().fill(tint.opacity(0.15))
+                Image(systemName: symbol)
+                    .font(.system(size: 27, weight: .semibold))
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(tint)
+            }
+            .frame(width: 58, height: 58)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(clear ? "All clear" : "Needs attention")
+                    .font(.system(.title2, design: .rounded).weight(.bold))
+                Text(countLine)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                if let last = lastRefresh {
+                    Text("Updated \(last.formatted(.relative(presentation: .named)))")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                        .lineLimit(1)
+                }
+            }
+
+            Spacer(minLength: 0)
+            if isRefreshing { ProgressView() }
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .modifier(CardSurface(cornerRadius: 24, tint: clear ? nil : tint))
+        .accessibilityElement(children: .combine)
+    }
+
+    private var countLine: String {
+        let services = "\(serviceCount) service\(serviceCount == 1 ? "" : "s")"
+        return clear ? "\(services) · all healthy" : "\(services) · \(attentionCount) need attention"
     }
 }
