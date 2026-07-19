@@ -1,0 +1,11 @@
+{
+  "LocalAddress": "http://192.168.1.50:8096",
+  "ServerName": "MediaVault",
+  "Version": "10.10.7",
+  "ProductName": "Jellyfin Server",
+  "OperatingSystem": "",
+  "Id": "8f3b1c2d4e5f6a7b8c9d0e1f2a3b4c5d",
+  "HasPendingRestart": false,
+  "HasUpdateAvailable": false,
+  "StartupWizardCompleted": true
+}

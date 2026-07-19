@@ -1,0 +1,51 @@
+{
+  "MediaContainer": {
+    "size": 2,
+    "Metadata": [
+      {
+        "type": "episode",
+        "title": "The Rains of Castamere",
+        "grandparentTitle": "Game of Thrones",
+        "parentTitle": "Season 3",
+        "ratingKey": "45718",
+        "sessionKey": "182",
+        "viewOffset": 1324000,
+        "duration": 3180000,
+        "User": { "id": "1", "title": "radaiko", "thumb": "https://plex.tv/users/abc/avatar" },
+        "Player": {
+          "address": "192.168.1.44", "device": "iPhone", "machineIdentifier": "d1a2b3c4",
+          "model": "iPhone15,3", "platform": "iOS", "platformVersion": "18.5",
+          "product": "Plex for iOS", "profile": "Universal Mobile", "state": "playing",
+          "title": "Radaiko iPhone", "version": "8.30", "local": false, "relayed": false,
+          "secure": true, "userID": 1
+        },
+        "Session": { "id": "hg4kd8s9f0plexsess1", "bandwidth": 4200, "location": "wan" },
+        "TranscodeSession": {
+          "key": "/transcode/sessions/hg4kd8s9f0plexsess1", "throttled": false, "complete": false,
+          "progress": 41.6, "speed": 3.2, "error": false, "context": "streaming",
+          "sourceVideoCodec": "hevc", "sourceAudioCodec": "eac3",
+          "videoDecision": "transcode", "audioDecision": "transcode",
+          "protocol": "dash", "container": "mp4", "videoCodec": "h264", "audioCodec": "aac",
+          "audioChannels": 2, "transcodeHwRequested": true, "transcodeHwEncoding": "nvenc",
+          "transcodeHwDecoding": "nvdec", "transcodeHwFullPipeline": true
+        },
+        "Media": [ { "videoResolution": "1080", "bitrate": 12000,
+          "Part": [ { "decision": "transcode",
+            "Stream": [ { "streamType": 1, "decision": "transcode" }, { "streamType": 2, "decision": "transcode" } ] } ] } ]
+      },
+      {
+        "type": "movie",
+        "title": "Blade Runner 2049",
+        "ratingKey": "9931",
+        "sessionKey": "183",
+        "viewOffset": 600000,
+        "duration": 9840000,
+        "User": { "id": "12", "title": "guest", "thumb": "" },
+        "Player": { "address": "192.168.1.20", "device": "Apple TV", "machineIdentifier": "e9f8g7h6",
+          "platform": "tvOS", "product": "Plex for Apple TV", "state": "paused",
+          "title": "Living Room", "local": true, "relayed": false, "secure": true, "userID": 12 },
+        "Session": { "id": "kk20plexsess2", "bandwidth": 28000, "location": "lan" }
+      }
+    ]
+  }
+}

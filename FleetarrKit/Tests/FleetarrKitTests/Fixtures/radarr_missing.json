@@ -1,0 +1,21 @@
+{
+  "page": 1,
+  "pageSize": 1,
+  "sortKey": "movieMetadata.sortTitle",
+  "sortDirection": "ascending",
+  "totalRecords": 7,
+  "records": [
+    {
+      "id": 900,
+      "title": "A Movie We Don't Have Yet",
+      "year": 2023,
+      "tmdbId": 222333,
+      "imdbId": "tt3333333",
+      "hasFile": false,
+      "monitored": true,
+      "isAvailable": true,
+      "minimumAvailability": "released",
+      "sizeOnDisk": 0
+    }
+  ]
+}

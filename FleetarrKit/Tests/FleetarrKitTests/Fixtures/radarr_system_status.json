@@ -1,0 +1,14 @@
+{
+  "appName": "Radarr",
+  "instanceName": "Radarr",
+  "version": "5.14.0.9383",
+  "buildTime": "2026-06-01T12:00:00Z",
+  "isDocker": true,
+  "branch": "master",
+  "authentication": "forms",
+  "startTime": "2026-07-19T08:00:00Z",
+  "packageVersion": "5.14.0.9383 - Docker",
+  "urlBase": "",
+  "osName": "ubuntu",
+  "runtimeVersion": "6.0.25"
+}

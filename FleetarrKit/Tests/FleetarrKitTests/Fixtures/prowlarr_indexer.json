@@ -1,0 +1,40 @@
+[
+  {
+    "id": 5,
+    "name": "1337x",
+    "enable": true,
+    "protocol": "torrent",
+    "privacy": "public",
+    "priority": 25,
+    "tags": [],
+    "added": "2025-01-02T10:00:00Z",
+    "sortName": "1337x",
+    "indexerUrls": ["https://1337x.to/"],
+    "definitionName": "1337x",
+    "supportsRss": true,
+    "supportsSearch": true,
+    "appProfileId": 1,
+    "implementation": "Cardigann",
+    "configContract": "CardigannSettings",
+    "message": null,
+    "status": null
+  },
+  {
+    "id": 8,
+    "name": "altHUB",
+    "enable": true,
+    "protocol": "torrent",
+    "privacy": "private",
+    "priority": 25,
+    "tags": [1],
+    "added": "2025-01-02T10:05:00Z",
+    "sortName": "althub",
+    "supportsRss": true,
+    "supportsSearch": true,
+    "appProfileId": 1,
+    "implementation": "Cardigann",
+    "configContract": "CardigannSettings",
+    "message": { "message": "Indexer is currently unavailable due to failures.", "type": "error" },
+    "status": { "id": 3, "indexerId": 8, "disabledTill": "2026-07-19T15:42:00Z", "mostRecentFailure": "2026-07-19T15:12:00Z", "initialFailure": "2026-07-19T08:55:00Z" }
+  }
+]

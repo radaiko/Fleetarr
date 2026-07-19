@@ -1,0 +1,20 @@
+# Xcode / xcodegen
+Fleetarr.xcodeproj/
+*.xcworkspace/
+xcuserdata/
+*.xcuserstate
+DerivedData/
+build/
+.build/
+
+# SwiftPM
+.swiftpm/
+Package.resolved
+
+# macOS
+.DS_Store
+
+# Secrets — never commit real credentials or signing config
+*.p12
+*.mobileprovision
+Local.xcconfig

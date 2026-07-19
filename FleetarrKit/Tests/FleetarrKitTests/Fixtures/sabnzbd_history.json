@@ -1,0 +1,40 @@
+{
+  "history": {
+    "noofslots": 3,
+    "slots": [
+      {
+        "nzo_id": "SABnzbd_nzo_ccc333",
+        "name": "Some.Show.S02E04.1080p.WEB",
+        "status": "Completed",
+        "fail_message": "",
+        "category": "tv",
+        "size": "2.8 GB",
+        "bytes": 3006477107,
+        "storage": "/data/complete/tv/Some.Show.S02E04",
+        "completed": 1721300000
+      },
+      {
+        "nzo_id": "SABnzbd_nzo_ddd444",
+        "name": "Some.Movie.2024.1080p.BluRay",
+        "status": "Failed",
+        "fail_message": "Unpacking failed, write error or disk is full?",
+        "category": "movies",
+        "size": "8.1 GB",
+        "bytes": 8697308774,
+        "storage": "",
+        "completed": 1721290000
+      },
+      {
+        "nzo_id": "SABnzbd_nzo_eee555",
+        "name": "Another.Show.S01E01.1080p.WEB",
+        "status": "Failed",
+        "fail_message": "Cannot create non-writable special-character filename, skipping",
+        "category": "tv",
+        "size": "1.1 GB",
+        "bytes": 1181116006,
+        "storage": "",
+        "completed": 1721280000
+      }
+    ]
+  }
+}

@@ -1,0 +1,70 @@
+{
+  "page": 1,
+  "pageSize": 200,
+  "sortKey": "timeleft",
+  "sortDirection": "ascending",
+  "totalRecords": 3,
+  "records": [
+    {
+      "id": 8455,
+      "seriesId": 12,
+      "episodeId": 34122,
+      "seasonNumber": 3,
+      "size": 2000000000.0,
+      "title": "Some.Show.S03E07.1080p.WEB.h264-GROUP",
+      "estimatedCompletionTime": "2026-07-19T07:02:11Z",
+      "added": "2026-07-19T06:41:55Z",
+      "status": "downloading",
+      "trackedDownloadStatus": "ok",
+      "trackedDownloadState": "downloading",
+      "statusMessages": [],
+      "errorMessage": null,
+      "downloadId": "SABnzbd_nzo_abc123",
+      "protocol": "usenet",
+      "downloadClient": "SABnzbd",
+      "indexer": "NZBgeek (Prowlarr)",
+      "sizeleft": 800000000.0,
+      "timeleft": "00:12:34"
+    },
+    {
+      "id": 8456,
+      "seriesId": 18,
+      "episodeId": 41200,
+      "seasonNumber": 1,
+      "size": 500000000.0,
+      "title": "Another.Show.S01E02.1080p.WEB.h264-GROUP",
+      "status": "warning",
+      "trackedDownloadStatus": "warning",
+      "trackedDownloadState": "importPending",
+      "statusMessages": [
+        { "title": "Download stalled", "messages": ["No connections to seeds/peers"] }
+      ],
+      "errorMessage": null,
+      "downloadId": "SABnzbd_nzo_def456",
+      "protocol": "usenet",
+      "downloadClient": "SABnzbd",
+      "indexer": "NZBgeek (Prowlarr)",
+      "sizeleft": 250000000.0,
+      "timeleft": "00:45:00"
+    },
+    {
+      "id": 8457,
+      "seriesId": 22,
+      "episodeId": 55003,
+      "seasonNumber": 4,
+      "size": 3000000000.0,
+      "title": "Broken.Show.S04E11.2160p.WEB.h265-GROUP",
+      "status": "failed",
+      "trackedDownloadStatus": "error",
+      "trackedDownloadState": "failed",
+      "statusMessages": [],
+      "errorMessage": "Import failed: not enough disk space on /tv",
+      "downloadId": "SABnzbd_nzo_ghi789",
+      "protocol": "usenet",
+      "downloadClient": "SABnzbd",
+      "indexer": "DrunkenSlug (Prowlarr)",
+      "sizeleft": 0.0,
+      "timeleft": null
+    }
+  ]
+}

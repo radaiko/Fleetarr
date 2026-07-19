@@ -1,0 +1,30 @@
+[
+  {
+    "id": 1,
+    "source": "DownloadClientCheck",
+    "type": "error",
+    "message": "Unable to communicate with SABnzbd. Connection refused",
+    "wikiUrl": "https://wiki.servarr.com/sonarr/system#download-clients"
+  },
+  {
+    "id": 2,
+    "source": "RootFolderCheck",
+    "type": "warning",
+    "message": "Missing root folder: /tv",
+    "wikiUrl": "https://wiki.servarr.com/sonarr/system#missing-root-folder"
+  },
+  {
+    "id": 3,
+    "source": "UpdateCheck",
+    "type": "notice",
+    "message": "New update is available",
+    "wikiUrl": "https://wiki.servarr.com/sonarr/system#updates"
+  },
+  {
+    "id": 4,
+    "source": "IndexerStatusCheck",
+    "type": "ok",
+    "message": "All indexers are healthy",
+    "wikiUrl": ""
+  }
+]

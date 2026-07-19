@@ -1,0 +1,98 @@
+[
+  {
+    "Id": "a1b2c3d4e5f60718293a4b5c6d7e8f90",
+    "UserId": "f0e1d2c3b4a5968778695a4b3c2d1e0f",
+    "UserName": "alice",
+    "Client": "Jellyfin Web",
+    "DeviceName": "Firefox",
+    "DeviceId": "TW96aWxsYS9maXJlZm94",
+    "ApplicationVersion": "10.10.7",
+    "RemoteEndPoint": "192.168.1.22",
+    "IsActive": true,
+    "LastActivityDate": "2026-07-19T20:14:32.1234567Z",
+    "SupportsRemoteControl": true,
+    "NowPlayingItem": {
+      "Name": "The Matrix",
+      "Id": "6f3aef7b2c1d4e5a9b8c7d6e5f4a3b2c",
+      "Type": "Movie",
+      "MediaType": "Video",
+      "RunTimeTicks": 81720000000,
+      "ProductionYear": 1999
+    },
+    "PlayState": {
+      "PositionTicks": 12340000000,
+      "CanSeek": true,
+      "IsPaused": false,
+      "IsMuted": false,
+      "VolumeLevel": 100,
+      "PlayMethod": "Transcode",
+      "RepeatMode": "RepeatNone",
+      "MediaSourceId": "6f3aef7b2c1d4e5a9b8c7d6e5f4a3b2c"
+    },
+    "TranscodingInfo": {
+      "AudioCodec": "aac",
+      "VideoCodec": "h264",
+      "Container": "ts",
+      "IsVideoDirect": false,
+      "IsAudioDirect": true,
+      "Bitrate": 8100000,
+      "Width": 1920,
+      "Height": 1080,
+      "AudioChannels": 2,
+      "Framerate": 23.976,
+      "CompletionPercentage": 15.1,
+      "HardwareAccelerationType": "none",
+      "TranscodeReasons": ["VideoCodecNotSupported", "ContainerBitrateExceedsLimit"]
+    }
+  },
+  {
+    "Id": "b2c3d4e5f6a7081920304a5b6c7d8e9f",
+    "UserId": "1a2b3c4d5e6f708192a3b4c5d6e7f809",
+    "UserName": "carol",
+    "Client": "Jellyfin iOS",
+    "DeviceName": "iPhone",
+    "ApplicationVersion": "1.7.2",
+    "RemoteEndPoint": "192.168.1.44",
+    "IsActive": true,
+    "LastActivityDate": "2026-07-19T20:12:10.0000000Z",
+    "SupportsRemoteControl": true,
+    "NowPlayingItem": {
+      "Name": "Chapter 7",
+      "Id": "aabb112233445566778899ccddeeff00",
+      "Type": "Episode",
+      "SeriesName": "Severance",
+      "SeasonName": "Season 2",
+      "ParentIndexNumber": 2,
+      "IndexNumber": 7,
+      "MediaType": "Video",
+      "RunTimeTicks": 27600000000,
+      "ProductionYear": 2026
+    },
+    "PlayState": {
+      "PositionTicks": 6900000000,
+      "CanSeek": true,
+      "IsPaused": true,
+      "IsMuted": false,
+      "PlayMethod": "DirectPlay",
+      "RepeatMode": "RepeatNone"
+    }
+  },
+  {
+    "Id": "9z8y7x6w5v4u3t2s1r0q",
+    "UserId": "aabbccdd11223344556677889900aabb",
+    "UserName": "bob",
+    "Client": "Jellyfin Android",
+    "DeviceName": "Pixel 8",
+    "ApplicationVersion": "2.6.3",
+    "RemoteEndPoint": "192.168.1.31",
+    "IsActive": true,
+    "LastActivityDate": "2026-07-19T20:10:00.0000000Z",
+    "SupportsRemoteControl": true,
+    "PlayState": {
+      "CanSeek": false,
+      "IsPaused": false,
+      "IsMuted": false,
+      "RepeatMode": "RepeatNone"
+    }
+  }
+]

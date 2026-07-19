@@ -1,0 +1,23 @@
+[
+  {
+    "id": 1,
+    "source": "IndexerStatusCheck",
+    "type": "warning",
+    "message": "Indexers unavailable due to failures for more than 6 hours: MyIndexer",
+    "wikiUrl": "https://wiki.servarr.com/radarr/system#indexers-are-unavailable-due-to-failures"
+  },
+  {
+    "id": 2,
+    "source": "DownloadClientCheck",
+    "type": "error",
+    "message": "Unable to communicate with qBittorrent. Connection refused",
+    "wikiUrl": "https://wiki.servarr.com/radarr/system#download-clients-are-unavailable-due-to-failures"
+  },
+  {
+    "id": 3,
+    "source": "UpdateCheck",
+    "type": "notice",
+    "message": "New update is available",
+    "wikiUrl": "https://wiki.servarr.com/radarr/system#new-update-is-available"
+  }
+]

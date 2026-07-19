@@ -1,0 +1,46 @@
+{
+  "queue": {
+    "version": "4.3.2",
+    "status": "Downloading",
+    "paused": false,
+    "speed": "3.2 M",
+    "kbpersec": "3276.8",
+    "speedlimit": "0",
+    "size": "5.0 GB",
+    "sizeleft": "1.2 GB",
+    "mb": "5120.0",
+    "mbleft": "1228.8",
+    "timeleft": "0:06:24",
+    "noofslots_total": 2,
+    "diskspace1": "412.5",
+    "diskspacetotal1": "915.0",
+    "slots": [
+      {
+        "status": "Downloading",
+        "nzo_id": "SABnzbd_nzo_aaa111",
+        "filename": "Some.Show.S02E05.1080p.WEB",
+        "cat": "tv",
+        "priority": "Normal",
+        "mb": "3072.0",
+        "mbleft": "1228.8",
+        "size": "3.0 GB",
+        "sizeleft": "1.2 GB",
+        "percentage": "60",
+        "timeleft": "0:06:24"
+      },
+      {
+        "status": "Paused",
+        "nzo_id": "SABnzbd_nzo_bbb222",
+        "filename": "Some.Movie.2025.2160p.BluRay",
+        "cat": "movies",
+        "priority": "Low",
+        "mb": "20480.0",
+        "mbleft": "20480.0",
+        "size": "20.0 GB",
+        "sizeleft": "20.0 GB",
+        "percentage": "0",
+        "timeleft": "0:00:00"
+      }
+    ]
+  }
+}

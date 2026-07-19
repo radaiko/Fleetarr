@@ -1,0 +1,23 @@
+{
+  "page": 1,
+  "pageSize": 1,
+  "sortKey": "airDateUtc",
+  "sortDirection": "descending",
+  "totalRecords": 42,
+  "records": [
+    {
+      "id": 34988,
+      "seriesId": 7,
+      "tvdbId": 8541203,
+      "episodeFileId": 0,
+      "seasonNumber": 2,
+      "episodeNumber": 5,
+      "title": "The Reckoning",
+      "airDate": "2026-07-15",
+      "airDateUtc": "2026-07-16T01:00:00Z",
+      "overview": "...",
+      "hasFile": false,
+      "monitored": true
+    }
+  ]
+}

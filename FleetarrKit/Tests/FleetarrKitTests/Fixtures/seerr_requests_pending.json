@@ -1,0 +1,54 @@
+{
+  "pageInfo": { "page": 1, "pages": 1, "pageSize": 20, "results": 2 },
+  "results": [
+    {
+      "id": 42,
+      "status": 1,
+      "type": "movie",
+      "is4k": false,
+      "serverId": 0,
+      "profileId": 4,
+      "rootFolder": "/data/movies",
+      "createdAt": "2026-07-18T20:14:03.000Z",
+      "updatedAt": "2026-07-18T20:14:03.000Z",
+      "media": { "id": 88, "tmdbId": 693134, "tvdbId": null, "status": 3, "status4k": 1, "mediaType": "movie" },
+      "requestedBy": {
+        "id": 3,
+        "email": "alex@example.com",
+        "username": null,
+        "plexUsername": "alexonplex",
+        "displayName": "alexonplex",
+        "userType": 1,
+        "permissions": 2,
+        "avatar": "https://plex.tv/users/abc/avatar/",
+        "createdAt": "2026-01-02T05:02:23.000Z",
+        "updatedAt": "2026-07-01T12:00:00.000Z"
+      },
+      "modifiedBy": null
+    },
+    {
+      "id": 41,
+      "status": 1,
+      "type": "tv",
+      "is4k": false,
+      "serverId": 0,
+      "profileId": 6,
+      "rootFolder": "/data/tv",
+      "createdAt": "2026-07-18T09:02:11.000Z",
+      "updatedAt": "2026-07-18T09:02:11.000Z",
+      "media": { "id": 87, "tmdbId": 1399, "tvdbId": 121361, "status": 2, "status4k": 1, "mediaType": "tv" },
+      "requestedBy": {
+        "id": 5,
+        "email": "sam@example.com",
+        "jellyfinUsername": "sam",
+        "displayName": "sam",
+        "userType": 3,
+        "permissions": 32,
+        "avatar": "/avatarproxy/xyz",
+        "createdAt": "2026-03-11T08:00:00.000Z",
+        "updatedAt": "2026-07-10T08:00:00.000Z"
+      },
+      "modifiedBy": null
+    }
+  ]
+}

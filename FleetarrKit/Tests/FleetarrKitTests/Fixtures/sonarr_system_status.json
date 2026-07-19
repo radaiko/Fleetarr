@@ -1,0 +1,14 @@
+{
+  "appName": "Sonarr",
+  "instanceName": "Sonarr",
+  "version": "4.0.10.2544",
+  "buildTime": "2024-09-30T18:36:44Z",
+  "isProduction": true,
+  "osName": "ubuntu",
+  "osVersion": "22.04",
+  "branch": "main",
+  "runtimeVersion": "6.0.33",
+  "packageVersion": "4.0.10.2544-ls255",
+  "databaseType": "sqLite",
+  "urlBase": ""
+}
