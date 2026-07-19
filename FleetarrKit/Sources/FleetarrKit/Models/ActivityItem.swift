@@ -15,6 +15,9 @@ public struct ActivityItem: Sendable, Identifiable, Equatable, Hashable {
     public var status: String?
     /// Severity if this item represents a problem; `nil` for a healthy in-progress item.
     public var severity: Problem.Severity?
+    /// Poster/thumbnail artwork for the row (e.g. a Plex/Jellyfin now-playing image or a Seerr
+    /// request poster), already resolved to a fully-authenticated URL; `nil` when unavailable.
+    public var artworkURL: URL?
     /// Extra labeled fields for the detail row, in presentation order.
     public var fields: [Field]
 
@@ -35,6 +38,7 @@ public struct ActivityItem: Sendable, Identifiable, Equatable, Hashable {
         progress: Double? = nil,
         status: String? = nil,
         severity: Problem.Severity? = nil,
+        artworkURL: URL? = nil,
         fields: [Field] = []
     ) {
         self.id = id
@@ -43,6 +47,7 @@ public struct ActivityItem: Sendable, Identifiable, Equatable, Hashable {
         self.progress = progress
         self.status = status
         self.severity = severity
+        self.artworkURL = artworkURL
         self.fields = fields
     }
 }

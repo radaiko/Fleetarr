@@ -95,6 +95,16 @@ public struct JellyfinClient: FleetService {
             fields.append(.init(label: "Transcode", value: reasons.joined(separator: ", ")))
         }
 
+        // Now-playing artwork: the item's Primary image, keyed by its tag and authenticated so the
+        // app can load it directly (spec §6.6).
+        let artwork: URL? = item.id.flatMap { itemId in
+            var query = [URLQueryItem(name: "api_key", value: context.credential)]
+            if let tag = item.imageTags?["Primary"] {
+                query.append(URLQueryItem(name: "tag", value: tag))
+            }
+            return context.makeURL(path: "/Items/\(itemId)/Images/Primary", query: query)
+        }
+
         return ActivityItem(
             id: session.id ?? UUID().uuidString,
             title: item.seriesName ?? item.name ?? "Unknown",
@@ -102,6 +112,7 @@ public struct JellyfinClient: FleetService {
             progress: progress(position: session.playState?.positionTicks, runtime: item.runTimeTicks),
             status: session.playState?.playMethod,
             severity: nil,
+            artworkURL: artwork,
             fields: fields
         )
     }

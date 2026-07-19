@@ -41,6 +41,9 @@ final class FleetStore {
     /// Token for the CloudKit remote-change observer (removed on deinit).
     private var remoteChangeObserver: (any NSObjectProtocol)?
 
+    /// Per-SABnzbd-instance progress memory for the stall detector, carried across refreshes (§6.4).
+    private var sabStallState: [UUID: SABnzbdStallDetector.State] = [:]
+
     #if DEBUG
     /// When true the store is showing built-in demo data (`--demo` launch arg) so `refresh()` is a
     /// no-op — the mock statuses aren't overwritten and no network is hit. Design/screenshot aid
@@ -116,11 +119,59 @@ final class FleetStore {
         let descriptor = FetchDescriptor<InstanceRecord>(
             sortBy: [SortDescriptor(\.sortOrder), SortDescriptor(\.label)]
         )
-        let records = (try? context.fetch(descriptor)) ?? []
+        let records = reconcileDuplicates((try? context.fetch(descriptor)) ?? [])
         instances = records.map(\.fleetInstance)
         // Existence check only — attributes-only, so it does NOT decrypt the secret and never
         // prompts (unlike readSecret).
         configuredInstanceIDs = Set(instances.filter { keychain.exists(for: $0.id) }.map(\.id))
+    }
+
+    /// Enforces instance uniqueness in app logic, since CloudKit forbids `@Attribute(.unique)`
+    /// (spec §3.5). Two devices can each create the "same" instance (same service type + base URL)
+    /// while offline and then both sync, producing duplicate tiles. This collapses each such group
+    /// to the most-recently-edited record (`updatedAt` tiebreaker), migrating the surviving record's
+    /// Keychain secret from a loser if the winner didn't carry one, and deleting the rest. Returns
+    /// the surviving records in the input order.
+    @discardableResult
+    private func reconcileDuplicates(_ records: [InstanceRecord]) -> [InstanceRecord] {
+        guard records.count > 1 else { return records }
+        var groups: [String: [InstanceRecord]] = [:]
+        for record in records {
+            groups[Self.dedupKey(record), default: []].append(record)
+        }
+        guard groups.contains(where: { $0.value.count > 1 }) else { return records }
+
+        var removed = Set<PersistentIdentifier>()
+        for group in groups.values where group.count > 1 {
+            let ranked = group.sorted { $0.updatedAt > $1.updatedAt }
+            let keeper = ranked[0]
+            for loser in ranked.dropFirst() {
+                if !keychain.exists(for: keeper.id),
+                   keychain.exists(for: loser.id),
+                   let secret = try? keychain.readSecret(for: loser.id) {
+                    try? keychain.save(secret, for: keeper.id)
+                }
+                try? keychain.delete(for: loser.id)
+                statuses[loser.id] = nil
+                staleInstanceIDs.remove(loser.id)
+                statusUpdatedAt.removeValue(forKey: loser.id)
+                credentialCache.removeValue(forKey: loser.id)
+                context.delete(loser)
+                removed.insert(loser.persistentModelID)
+            }
+        }
+        if !removed.isEmpty { try? context.save() }
+        return records.filter { !removed.contains($0.persistentModelID) }
+    }
+
+    /// The natural key a duplicate is judged by: service type + normalized base URL (lowercased,
+    /// trailing slash trimmed) so `https://host/sonarr` and `https://host/sonarr/` collapse.
+    private static func dedupKey(_ record: InstanceRecord) -> String {
+        let url = record.baseURLString
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        let normalized = url.hasSuffix("/") ? String(url.dropLast()) : url
+        return "\(record.serviceTypeRaw)|\(normalized)"
     }
 
     /// Reads a secret at most once per session, caching the result (including "none stored").
@@ -230,12 +281,49 @@ final class FleetStore {
         }
         lastRefresh = .now
 
+        await detectStalledDownloads()
+
         Analytics.dashboardRefreshed(instanceCount: dashboardInstances.count)
         let badge = summary.problemBadgeCount
         if badge > 0 { Analytics.problemBadgeShown(count: badge) }
 
         writeSnapshot()
         updateAppBadge()
+    }
+
+    /// Flags SABnzbd downloads that have made no progress for longer than the configured threshold
+    /// as a `.warning` (spec §6.4). Stalling is temporal, so it needs progress remembered across
+    /// refreshes: this runs one extra lightweight queue fetch per SABnzbd instance that actually has
+    /// something queued, advances the per-instance stall memory, and injects a stall warning into
+    /// that tile's status (bumping a healthy tile to warning).
+    private func detectStalledDownloads() async {
+        let minutes = UserDefaults.standard.object(forKey: "stalledThresholdMinutes") as? Int ?? 10
+        let threshold = TimeInterval(max(1, minutes) * 60)
+        let now = Date.now
+        for instance in dashboardInstances where instance.serviceType == .sabnzbd {
+            guard let status = statuses[instance.id], status.health != .unreachable else { continue }
+            let queueCount = Int(status.headline.first { $0.label == "Queue" }?.value ?? "0") ?? 0
+            guard queueCount > 0 else { sabStallState[instance.id] = .init(); continue }
+            guard let client = service(for: instance) as? SABnzbdClient,
+                  let samples = try? await client.fetchQueueSamples() else { continue }
+
+            let (stalled, newState) = SABnzbdStallDetector.advance(
+                sabStallState[instance.id] ?? .init(), samples: samples, now: now, threshold: threshold
+            )
+            sabStallState[instance.id] = newState
+            guard !stalled.isEmpty, var updated = statuses[instance.id] else { continue }
+            for id in stalled where !updated.problems.contains(where: { $0.id == "stall:\(id)" }) {
+                updated.problems.append(Problem(
+                    id: "stall:\(id)",
+                    severity: .warning,
+                    title: "Stalled download",
+                    detail: "No progress for over \(minutes) min",
+                    source: "queue"
+                ))
+            }
+            if updated.health == .healthy { updated.health = .warning }
+            statuses[instance.id] = updated
+        }
     }
 
     /// Reflects the combined problem count on the macOS Dock icon (spec §5). On iOS the app-icon

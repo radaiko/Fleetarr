@@ -57,8 +57,9 @@ struct SeerrRequest: Decodable {
     let updatedAt: String?
 }
 
-/// The media the request targets. Resolving a human title/poster needs a TMDB lookup, which is
-/// out of scope for this integration — only the identifiers are decoded here.
+/// The media the request targets. The human title/poster is resolved separately via Seerr's own
+/// `/movie/{tmdbId}` or `/tv/{tmdbId}` detail endpoint (``SeerrMediaDetail``); only the identifiers
+/// are on the request itself.
 struct SeerrMedia: Decodable {
     let id: Int?
     let tmdbId: Int?
@@ -67,6 +68,20 @@ struct SeerrMedia: Decodable {
     /// 6=BLOCKLISTED, 7=DELETED (Seerr inserted BLOCKLISTED, shifting DELETED from 6 to 7).
     let status: Int?
     let mediaType: String?
+}
+
+/// The subset of Seerr's `/movie/{tmdbId}` or `/tv/{tmdbId}` detail used to show a request's real
+/// title + poster (spec §6.3). Movies carry `title`, TV carries `name`.
+struct SeerrMediaDetail: Decodable {
+    let title: String?
+    let name: String?
+    let posterPath: String?
+
+    var displayTitle: String? {
+        let candidate = title ?? name
+        guard let candidate, !candidate.trimmingCharacters(in: .whitespaces).isEmpty else { return nil }
+        return candidate
+    }
 }
 
 /// A Seerr `User`. `displayName` is supplied at runtime; the fallbacks mirror the server's own

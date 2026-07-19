@@ -494,26 +494,40 @@ private struct ActivityRow: View {
     let item: ActivityItem
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack {
-                Text(item.title).font(.subheadline.weight(.medium)).lineLimit(1)
-                Spacer()
-                if let status = item.status {
-                    Text(status).font(.caption).foregroundStyle(.secondary)
+        HStack(alignment: .top, spacing: 12) {
+            if let artworkURL = item.artworkURL {
+                AsyncImage(url: artworkURL) { phase in
+                    if let image = phase.image {
+                        image.resizable().aspectRatio(contentMode: .fill)
+                    } else {
+                        Color.primary.opacity(0.06)
+                    }
                 }
+                .frame(width: 44, height: 64)
+                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                .accessibilityHidden(true)
             }
-            if let subtitle = item.subtitle, !subtitle.isEmpty {
-                Text(subtitle).font(.caption).foregroundStyle(.secondary)
-            }
-            if let progress = item.progress {
-                ProgressView(value: min(max(progress, 0), 1))
-            }
-            if !item.fields.isEmpty {
-                HStack(spacing: 14) {
-                    ForEach(item.fields) { field in
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text(field.label).font(.caption2).foregroundStyle(.secondary)
-                            Text(field.value).font(.caption)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text(item.title).font(.subheadline.weight(.medium)).lineLimit(1)
+                    Spacer()
+                    if let status = item.status {
+                        Text(status).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                if let subtitle = item.subtitle, !subtitle.isEmpty {
+                    Text(subtitle).font(.caption).foregroundStyle(.secondary)
+                }
+                if let progress = item.progress {
+                    ProgressView(value: min(max(progress, 0), 1))
+                }
+                if !item.fields.isEmpty {
+                    HStack(spacing: 14) {
+                        ForEach(item.fields) { field in
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(field.label).font(.caption2).foregroundStyle(.secondary)
+                                Text(field.value).font(.caption)
+                            }
                         }
                     }
                 }

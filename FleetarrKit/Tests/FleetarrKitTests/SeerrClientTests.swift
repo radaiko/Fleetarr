@@ -12,6 +12,13 @@ struct SeerrClientTests {
             if path.hasSuffix("/status") { return .response(status: 200, data: status) }
             if path.hasSuffix("/request/count") { return .response(status: 200, data: count) }
             if path.hasSuffix("/request") { return .response(status: 200, data: requests) }
+            // Media-detail lookups for the request title/poster (spec §6.3).
+            if path.contains("/movie/") {
+                return .response(status: 200, data: Data(#"{"title":"Dune: Part Two","posterPath":"/poster.jpg"}"#.utf8))
+            }
+            if path.contains("/tv/") {
+                return .response(status: 200, data: Data(#"{"name":"Andor","posterPath":"/tv.jpg"}"#.utf8))
+            }
             return .response(status: 404, data: Data())
         }
     }
@@ -74,15 +81,17 @@ struct SeerrClientTests {
         #expect(items.count == 2)
         let first = try #require(items.first)
         #expect(first.id == "42")
-        #expect(first.title == "Request #42")
+        // Title + poster resolved from the media-detail endpoint (spec §6.3).
+        #expect(first.title == "Dune: Part Two")
+        #expect(first.artworkURL == URL(string: "https://image.tmdb.org/t/p/w342/poster.jpg"))
         #expect(first.subtitle == "alexonplex")
         #expect(first.status == "Pending")
         #expect(first.severity == nil)
         #expect(first.fields.first { $0.label == "Type" }?.value == "Movie")
-        #expect(first.fields.first { $0.label == "TMDB" }?.value == "693134")
         #expect(first.fields.first { $0.label == "Requested" }?.value == "2026-07-18")
 
         let second = items[1]
+        #expect(second.title == "Andor")
         #expect(second.subtitle == "sam")
         #expect(second.fields.first { $0.label == "Type" }?.value == "TV")
     }

@@ -97,6 +97,16 @@ public struct PlexClient: FleetService {
         if let state = nonEmpty(session.player?.state) {
             fields.append(.init(label: "State", value: state.capitalized))
         }
+        // Transcode reason (spec §6.5): name which streams are actually being transcoded, so the
+        // "someone's transcoding unnecessarily" case is legible rather than just a "Transcode" flag.
+        if session.isTranscoding, let reason = transcodeReason(for: session) {
+            fields.append(.init(label: "Transcoding", value: reason))
+        }
+
+        // Now-playing artwork, resolved to a token-authenticated URL the app can load directly.
+        let artwork = nonEmpty(session.grandparentThumb ?? session.thumb).flatMap {
+            context.makeURL(path: $0, query: [URLQueryItem(name: "X-Plex-Token", value: context.credential)])
+        }
 
         return ActivityItem(
             // Use Session.id — that (not sessionKey/ratingKey) is the terminate target (spec §6.5).
@@ -107,8 +117,19 @@ public struct PlexClient: FleetService {
             status: session.isTranscoding ? "Transcode" : "Direct Play",
             // A stream is not a problem, so it carries no severity (spec §6.5).
             severity: nil,
+            artworkURL: artwork,
             fields: fields
         )
+    }
+
+    /// A human summary of what's being transcoded ("Video + Audio", "Video", "Audio"), from the
+    /// transcode session's per-stream decisions (spec §6.5).
+    private func transcodeReason(for session: PlexSession) -> String? {
+        let parts = [
+            session.transcodeSession?.videoDecision?.lowercased() == "transcode" ? "Video" : nil,
+            session.transcodeSession?.audioDecision?.lowercased() == "transcode" ? "Audio" : nil,
+        ].compactMap { $0 }
+        return parts.isEmpty ? nil : parts.joined(separator: " + ")
     }
 
     /// "Show – Episode" for episodes, falling back to whatever single title is present.

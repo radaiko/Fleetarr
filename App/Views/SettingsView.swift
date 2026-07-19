@@ -11,6 +11,7 @@ struct SettingsView: View {
     @AppStorage("appLockEnabled") private var appLockEnabled = false
     @AppStorage("refreshIntervalSeconds") private var refreshInterval: Double = 60
     @AppStorage("upcomingLookaheadDays") private var lookaheadDays: Int = 7
+    @AppStorage("stalledThresholdMinutes") private var stalledMinutes: Int = 10
 
     @State private var showingAdd = false
     @State private var editingInstance: FleetInstance?
@@ -49,11 +50,15 @@ struct SettingsView: View {
                 }
                 Stepper("Calendar look-ahead: ^[\(lookaheadDays) day](inflect: true)",
                         value: $lookaheadDays, in: 1...30)
+                Stepper(value: $stalledMinutes, in: 2...60) {
+                    Text("Flag SABnzbd stalls after \(stalledMinutes) min")
+                }
             } header: {
                 Text("Dashboard")
             } footer: {
-                Text("How often the fleet refreshes while open, and how far ahead Sonarr/Radarr "
-                     + "Upcoming looks.")
+                Text("How often the fleet refreshes while open, how far ahead Sonarr/Radarr Upcoming "
+                     + "looks, and how long a SABnzbd download can sit without progress before it's "
+                     + "flagged as stalled.")
             }
 
             Section {

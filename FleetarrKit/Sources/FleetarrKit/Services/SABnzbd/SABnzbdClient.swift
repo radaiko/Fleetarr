@@ -54,6 +54,19 @@ public struct SABnzbdClient: FleetService {
         }
     }
 
+    /// Per-item progress samples for the cross-refresh stall detector (spec §6.4). "Active" means the
+    /// slot is actually downloading (not paused or a queued placeholder).
+    public func fetchQueueSamples() async throws(FleetError) -> [SABnzbdStallDetector.Sample] {
+        let queue = try await fetchQueueRaw()
+        return (queue.slots ?? []).map { slot in
+            SABnzbdStallDetector.Sample(
+                id: slot.nzoId,
+                percentage: parseDouble(slot.percentage) ?? 0,
+                isActive: slot.status.lowercased() == "downloading"
+            )
+        }
+    }
+
     // MARK: Status assembly (pure, unit-testable)
 
     /// Builds the dashboard status from raw queue + history payloads. Pure so it can be tested

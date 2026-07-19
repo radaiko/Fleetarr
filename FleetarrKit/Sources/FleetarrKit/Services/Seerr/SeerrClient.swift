@@ -53,21 +53,48 @@ public struct SeerrClient: FleetService {
 
     public func fetchActivity() async throws(FleetError) -> [ActivityItem] {
         let page = try await fetchPendingRequests(take: 20)
-        return (page.results ?? []).map { request in
-            ActivityItem(
+        let requests = page.results ?? []
+        // Resolve each request's human title + poster concurrently and best-effort: a lookup that
+        // fails or is missing just falls back to the request number, so one slow/absent detail never
+        // blanks the list (spec §6.3, §9.5).
+        let details = await withTaskGroup(of: (Int, SeerrMediaDetail?).self) { group in
+            for request in requests {
+                group.addTask { (request.id, await self.fetchMediaDetail(for: request)) }
+            }
+            var resolved: [Int: SeerrMediaDetail] = [:]
+            for await (id, detail) in group where detail != nil {
+                resolved[id] = detail
+            }
+            return resolved
+        }
+        return requests.map { request in
+            let detail = details[request.id]
+            let poster = detail?.posterPath.flatMap {
+                URL(string: "https://image.tmdb.org/t/p/w342\($0)")
+            }
+            return ActivityItem(
                 id: String(request.id),
-                title: "Request #\(request.id)",
+                title: detail?.displayTitle ?? "Request #\(request.id)",
                 subtitle: request.requestedBy?.resolvedDisplayName,
                 progress: nil,
                 status: Self.statusText(request.status),
                 severity: Self.severity(for: request.status),
+                artworkURL: poster,
                 fields: [
                     .init(label: "Type", value: Self.typeLabel(request.type ?? request.media?.mediaType)),
-                    .init(label: "TMDB", value: request.media?.tmdbId.map(String.init) ?? "—"),
                     .init(label: "Requested", value: Self.formatDate(request.createdAt)),
                 ]
             )
         }
+    }
+
+    /// Best-effort human title + poster for a request, from Seerr's own media-detail endpoint
+    /// (`/movie/{tmdbId}` or `/tv/{tmdbId}`). Returns `nil` on any failure (spec §6.3).
+    private func fetchMediaDetail(for request: SeerrRequest) async -> SeerrMediaDetail? {
+        guard let tmdbId = request.media?.tmdbId else { return nil }
+        let isTV = (request.type ?? request.media?.mediaType ?? "").lowercased() == "tv"
+        let path = isTV ? "/api/v1/tv/\(tmdbId)" : "/api/v1/movie/\(tmdbId)"
+        return try? await context.fetchJSON(SeerrMediaDetail.self, path: path, headers: authHeaders)
     }
 
     // MARK: Status assembly (pure, unit-testable)

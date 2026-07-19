@@ -45,6 +45,7 @@ struct JellyfinSession: Decodable {
 
 /// The item currently playing in a session (BaseItemDto subset).
 struct JellyfinNowPlayingItem: Decodable {
+    let id: String?
     let name: String?
     let seriesName: String?
     let seasonName: String?
@@ -52,8 +53,11 @@ struct JellyfinNowPlayingItem: Decodable {
     let parentIndexNumber: Int?
     let type: String?
     let runTimeTicks: Int64?
+    /// Image kind → tag (e.g. `["Primary": "abc…"]`), used to build the now-playing artwork URL.
+    let imageTags: [String: String]?
 
     enum CodingKeys: String, CodingKey {
+        case id = "Id"
         case name = "Name"
         case seriesName = "SeriesName"
         case seasonName = "SeasonName"
@@ -61,6 +65,7 @@ struct JellyfinNowPlayingItem: Decodable {
         case parentIndexNumber = "ParentIndexNumber"
         case type = "Type"
         case runTimeTicks = "RunTimeTicks"
+        case imageTags = "ImageTags"
     }
 }
 

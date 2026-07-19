@@ -53,6 +53,10 @@ struct PlexSession: Decodable {
     let parentTitle: String?
     let ratingKey: String?
     let sessionKey: String?
+    /// Poster/thumbnail paths for the now-playing item (spec §6.5). `grandparentThumb` is the show
+    /// poster for episodes; `thumb` is the item's own image.
+    let thumb: String?
+    let grandparentThumb: String?
     /// Playback position, in milliseconds.
     let viewOffset: Int?
     /// Media duration, in milliseconds.
@@ -65,6 +69,7 @@ struct PlexSession: Decodable {
 
     enum CodingKeys: String, CodingKey {
         case type, title, grandparentTitle, parentTitle, ratingKey, sessionKey, viewOffset, duration
+        case thumb, grandparentThumb
         case user = "User"
         case player = "Player"
         case session = "Session"
