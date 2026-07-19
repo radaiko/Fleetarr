@@ -483,6 +483,15 @@ final class FleetStore {
         }
     }
 
+    func searchForItem(_ item: ActivityItem, on instance: FleetInstance) async -> FleetError? {
+        await runAction(on: instance, event: .searchTriggered) { service in
+            guard let service = service as? ManualSearching else {
+                throw FleetError.transport("Not supported by this service")
+            }
+            try await service.searchForItem(id: item.id)
+        }
+    }
+
     func approveRequest(_ item: ActivityItem, on instance: FleetInstance) async -> FleetError? {
         await runAction(on: instance, event: .requestApproved) { service in
             guard let service = service as? RequestApproving else {

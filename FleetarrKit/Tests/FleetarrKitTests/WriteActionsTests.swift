@@ -90,6 +90,45 @@ struct WriteActionsTests {
         #expect(request.queryValue("blocklist") == "false")
     }
 
+    @Test("Sonarr search POSTs an EpisodeSearch command for the episode id (spec §6.1)")
+    func sonarrSearch() async throws {
+        let transport = okTransport()
+        let client = SonarrClient(context: Fixture.context(transport: transport))
+        try await client.searchForItem(id: "missing:42")
+
+        let request = try #require(transport.sentRequests.last)
+        #expect(request.httpMethod == "POST")
+        #expect(request.url?.path == "/api/v3/command")
+        let body = try #require(request.httpBody)
+        let json = try #require(try JSONSerialization.jsonObject(with: body) as? [String: Any])
+        #expect(json["name"] as? String == "EpisodeSearch")
+        #expect(json["episodeIds"] as? [Int] == [42])
+        #expect(request.value(forHTTPHeaderField: "X-Api-Key") == "test-key")
+    }
+
+    @Test("Sonarr search rejects the composite fallback id (no episode id)")
+    func sonarrSearchRejectsComposite() async {
+        let client = SonarrClient(context: Fixture.context(transport: okTransport()))
+        await #expect(throws: FleetError.self) {
+            try await client.searchForItem(id: "missing:5:1:3")
+        }
+    }
+
+    @Test("Radarr search POSTs a MoviesSearch command for the movie id (spec §6.1)")
+    func radarrSearch() async throws {
+        let transport = okTransport()
+        let client = RadarrClient(context: Fixture.context(transport: transport))
+        try await client.searchForItem(id: "missing:9")
+
+        let request = try #require(transport.sentRequests.last)
+        #expect(request.httpMethod == "POST")
+        #expect(request.url?.path == "/api/v3/command")
+        let body = try #require(request.httpBody)
+        let json = try #require(try JSONSerialization.jsonObject(with: body) as? [String: Any])
+        #expect(json["name"] as? String == "MoviesSearch")
+        #expect(json["movieIds"] as? [Int] == [9])
+    }
+
     // MARK: Seerr
 
     @Test("Seerr approve/decline POST to the request action endpoints")

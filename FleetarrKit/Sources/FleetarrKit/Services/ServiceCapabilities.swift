@@ -22,6 +22,12 @@ public protocol DownloadControlling: FleetService {
     func retryFailedItem(id: String) async throws(FleetError)
 }
 
+/// Triggering a manual search / retry for a wanted item (Sonarr episodes, Radarr movies; spec §6.1).
+public protocol ManualSearching: FleetService {
+    /// Kicks off a search for the wanted item identified by a Missing/Upcoming `ActivityItem.id`.
+    func searchForItem(id: String) async throws(FleetError)
+}
+
 /// Approving/declining pending requests (Seerr; spec §6.3).
 public protocol RequestApproving: FleetService {
     func approveRequest(id: String) async throws(FleetError)

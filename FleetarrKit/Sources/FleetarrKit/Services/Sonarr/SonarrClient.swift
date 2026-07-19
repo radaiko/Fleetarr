@@ -278,6 +278,28 @@ extension SonarrClient: QueueItemRemoving {
     }
 }
 
+extension SonarrClient: ManualSearching {
+    /// Missing/Upcoming ids are `"prefix:episodeId"`; kick off an `EpisodeSearch` command for that
+    /// episode (spec §6.1). Ids in the composite fallback form (no episode id) can't be searched.
+    public func searchForItem(id: String) async throws(FleetError) {
+        guard let episodeId = Self.wantedNumericID(id) else {
+            throw FleetError.transport("This item can't be searched.")
+        }
+        let body = try? JSONSerialization.data(withJSONObject: ["name": "EpisodeSearch", "episodeIds": [episodeId]])
+        var headers = authHeaders
+        headers["Content-Type"] = "application/json"
+        let request = try context.makeRequest(path: "/api/v3/command", method: "POST", headers: headers, body: body)
+        _ = try await context.send(request)
+    }
+
+    /// The numeric id from a two-part `"prefix:id"` activity id (nil for the composite fallback form).
+    static func wantedNumericID(_ id: String) -> Int? {
+        let parts = id.split(separator: ":")
+        guard parts.count == 2 else { return nil }
+        return Int(parts[1])
+    }
+}
+
 // MARK: - Detail-screen listings (spec §6.1)
 
 /// Secondary read-only lists for the Sonarr detail screen: upcoming episodes, recent history, and

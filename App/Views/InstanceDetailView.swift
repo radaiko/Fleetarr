@@ -136,7 +136,13 @@ struct InstanceDetailView: View {
                 }
             }
             if let listing = service as? MissingListing {
-                LazyActivityDisclosure(title: "Missing", systemImage: "tray.and.arrow.down") {
+                LazyActivityDisclosure(
+                    title: "Missing",
+                    systemImage: "tray.and.arrow.down",
+                    onSearch: service is ManualSearching
+                        ? { item in run { await store.searchForItem(item, on: instance) } }
+                        : nil
+                ) {
                     await activityResult { try await listing.fetchMissing() }
                 }
             }
@@ -299,6 +305,9 @@ private struct LazyActivityDisclosure: View {
     /// When set, failed (`.error`) rows get a "Retry" swipe action — used for SABnzbd History
     /// so a failed download can be re-tried in place (spec §6.4).
     var onRetry: ((ActivityItem) -> Void)? = nil
+    /// When set, rows get a "Search" swipe action — used for the *arr Missing list to trigger a
+    /// manual search for that wanted item (spec §6.1).
+    var onSearch: ((ActivityItem) -> Void)? = nil
     let load: () async -> Result<[ActivityItem], FleetError>
 
     @State private var expanded = false
@@ -347,6 +356,16 @@ private struct LazyActivityDisclosure: View {
                                     Label("Retry", systemImage: "arrow.clockwise")
                                 }
                                 .tint(.blue)
+                            }
+                        }
+                        .swipeActions(edge: .leading) {
+                            if let onSearch {
+                                Button {
+                                    onSearch(item)
+                                } label: {
+                                    Label("Search", systemImage: "magnifyingglass")
+                                }
+                                .tint(.indigo)
                             }
                         }
                 }

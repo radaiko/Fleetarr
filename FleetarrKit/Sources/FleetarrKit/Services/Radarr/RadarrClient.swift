@@ -459,3 +459,25 @@ extension RadarrClient: QueueItemRemoving {
         _ = try await context.send(request)
     }
 }
+
+extension RadarrClient: ManualSearching {
+    /// Missing/Calendar ids are `"prefix:movieId"`; kick off a `MoviesSearch` command for that movie
+    /// (spec §6.1). Ids in the composite fallback form (no movie id) can't be searched.
+    public func searchForItem(id: String) async throws(FleetError) {
+        guard let movieId = Self.wantedNumericID(id) else {
+            throw FleetError.transport("This item can't be searched.")
+        }
+        let body = try? JSONSerialization.data(withJSONObject: ["name": "MoviesSearch", "movieIds": [movieId]])
+        var headers = authHeaders
+        headers["Content-Type"] = "application/json"
+        let request = try context.makeRequest(path: "/api/v3/command", method: "POST", headers: headers, body: body)
+        _ = try await context.send(request)
+    }
+
+    /// The numeric id from a two-part `"prefix:id"` activity id (nil for the composite fallback form).
+    static func wantedNumericID(_ id: String) -> Int? {
+        let parts = id.split(separator: ":")
+        guard parts.count == 2 else { return nil }
+        return Int(parts[1])
+    }
+}
