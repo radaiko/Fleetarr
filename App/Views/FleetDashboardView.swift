@@ -100,7 +100,8 @@ struct FleetDashboardView: View {
                         status: store.status(for: instance),
                         configured: store.hasStoredSecret(for: instance),
                         stale: store.isStale(instance),
-                        lastUpdated: store.lastUpdated(for: instance)
+                        lastUpdated: store.lastUpdated(for: instance),
+                        refreshing: store.isRefreshing(instance)
                     )
                 }
                 .buttonStyle(.plain)

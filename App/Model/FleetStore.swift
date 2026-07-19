@@ -7,6 +7,9 @@ import FleetarrKit
 #if canImport(AppKit)
 import AppKit
 #endif
+#if os(iOS)
+import UserNotifications
+#endif
 
 /// The app's observable state hub: owns the instance list (from SwiftData), runs concurrent
 /// refreshes via `FleetRefresher`, and exposes per-instance status + the fleet summary to the UI.
@@ -32,6 +35,9 @@ final class FleetStore {
     /// When each instance's currently-held status was last successfully refreshed, for the
     /// "updated …" / stale label. Seeded from the on-disk snapshot on launch.
     private(set) var statusUpdatedAt: [UUID: Date] = [:]
+    /// Instances whose status is being fetched right now — drives a per-tile spinner while a first
+    /// load (no cached status yet) is in flight (spec §5).
+    private(set) var refreshingInstanceIDs: Set<UUID> = []
 
     /// In-memory cache of decrypted secrets so the Keychain data is read at most once per instance
     /// per session — otherwise every refresh/reload re-triggers the macOS keychain-access prompt on
@@ -259,11 +265,13 @@ final class FleetStore {
         for instance in dashboardInstances {
             if let secret = cachedSecret(for: instance.id) { credentials[instance.id] = secret }
         }
+        refreshingInstanceIDs = Set(dashboardInstances.map(\.id))
         let results = await FleetRefresher.refresh(
             instances: dashboardInstances,
             factory: factory,
             credential: { instance in credentials[instance.id] }
         )
+        refreshingInstanceIDs = []
         // Merge results. When a previously-healthy instance just went unreachable, keep its
         // last-known-good status and mark it stale rather than blanking the tile's metrics — the
         // user can still see what it last reported, clearly timestamped (spec §9.5). A genuine
@@ -326,12 +334,28 @@ final class FleetStore {
         }
     }
 
-    /// Reflects the combined problem count on the macOS Dock icon (spec §5). On iOS the app-icon
-    /// badge needs notification authorization, so it's left to a later notifications pass.
+    /// Reflects the combined fleet problem count on the app icon (spec §5): the macOS Dock tile
+    /// directly, and the iOS app-icon badge via the notification centre. On iOS the badge needs
+    /// `.badge` authorization, so it's requested lazily — only the first time there's actually a
+    /// problem to show, so a clean fleet never triggers a permission prompt.
     private func updateAppBadge() {
-        #if os(macOS)
         let count = summary.problemBadgeCount
+        #if os(macOS)
         NSApplication.shared.dockTile.badgeLabel = count > 0 ? "\(count)" : nil
+        #elseif os(iOS)
+        let center = UNUserNotificationCenter.current()
+        center.getNotificationSettings { settings in
+            switch settings.authorizationStatus {
+            case .authorized, .provisional, .ephemeral:
+                Task { @MainActor in try? await center.setBadgeCount(count) }
+            case .notDetermined where count > 0:
+                center.requestAuthorization(options: [.badge]) { granted, _ in
+                    if granted { Task { @MainActor in try? await center.setBadgeCount(count) } }
+                }
+            default:
+                break
+            }
+        }
         #endif
     }
 
@@ -532,6 +556,9 @@ final class FleetStore {
 
     /// When the status currently shown for this instance was last successfully refreshed.
     func lastUpdated(for instance: FleetInstance) -> Date? { statusUpdatedAt[instance.id] }
+
+    /// Whether this instance's status is being fetched right now (spec §5).
+    func isRefreshing(_ instance: FleetInstance) -> Bool { refreshingInstanceIDs.contains(instance.id) }
 
     /// Whether a secret is stored for this instance (drives the "not configured" tile state).
     /// Uses the cached set computed on `reload`, so this never hits the Keychain during rendering.

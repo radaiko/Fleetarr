@@ -14,12 +14,20 @@ struct InstanceCardView: View {
     /// data (spec §9.5) — rendered dimmed with an "offline" marker rather than blanked.
     var stale: Bool = false
     var lastUpdated: Date? = nil
+    /// The status is being fetched right now and there's nothing cached yet — show a spinner and a
+    /// "Checking…" line instead of an empty/unknown tile (spec §5).
+    var refreshing: Bool = false
 
     @Environment(\.colorScheme) private var colorScheme
     @State private var hovering = false
 
     private var health: HealthState {
         configured ? (status?.health ?? .unknown) : .unknown
+    }
+
+    /// A first load in flight for a tile that has no cached status yet.
+    private var firstLoading: Bool {
+        refreshing && configured && !stale && health == .unknown
     }
 
     /// Whether the instance needs a second look — drives the tinted (vs. calm neutral) treatment.
@@ -100,7 +108,9 @@ struct InstanceCardView: View {
     }
 
     @ViewBuilder private var statusGlyph: some View {
-        if stale {
+        if firstLoading {
+            ProgressView().controlSize(.small)
+        } else if stale {
             Image(systemName: "wifi.slash")
                 .foregroundStyle(.orange)
         } else if !configured {
@@ -141,6 +151,7 @@ struct InstanceCardView: View {
             return "Offline · showing last-known"
         }
         if !configured { return "Not configured" }
+        if firstLoading { return "Checking…" }
         if let line = status?.summaryLine, !line.isEmpty { return line }
         return health == .unknown ? "Not checked yet" : health.displayLabel
     }
