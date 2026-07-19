@@ -17,10 +17,10 @@ struct SonarrListingsTests {
 
         let first = try #require(items.first)
         #expect(first.title == "Example Series — S02E06 Fallout")
-        #expect(first.subtitle == "2026-07-23")
+        #expect(first.subtitle == "2026-07-22") // broadcast airDate, not the UTC airDateUtc day
         #expect(first.status == "Upcoming")
         #expect(first.severity == nil)
-        #expect(first.fields.first { $0.label == "Air date" }?.value == "2026-07-23")
+        #expect(first.fields.first { $0.label == "Air date" }?.value == "2026-07-22")
         #expect(first.fields.first { $0.label == "Monitored" }?.value == "Yes")
 
         // hasFile == true → "Downloaded"; monitored == false → "No".
@@ -99,7 +99,7 @@ struct SonarrListingsTests {
 
         let first = try #require(items.first)
         #expect(first.title == "Example Series — S02E05 The Reckoning")
-        #expect(first.subtitle == "2026-07-16")
+        #expect(first.subtitle == "2026-07-15") // broadcast airDate, not the UTC airDateUtc day
         #expect(first.status == "Missing")
         #expect(first.fields.first { $0.label == "Monitored" }?.value == "Yes")
         #expect(first.id == "missing:34988")

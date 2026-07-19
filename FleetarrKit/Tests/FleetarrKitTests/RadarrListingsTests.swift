@@ -32,9 +32,10 @@ struct RadarrListingsTests {
         #expect(dune.fields.first { $0.label == "Digital" }?.value == "2024-04-16")
         #expect(dune.fields.first { $0.label == "Monitored" }?.value == "Yes")
 
-        // Second movie has no file yet → Upcoming; nearest is its cinema date.
+        // Second movie has no file yet → Upcoming; the shown release is the next FUTURE one
+        // (its future digital date), not the past theatrical date that also sits on the record.
         #expect(items[1].status == "Upcoming")
-        #expect(items[1].subtitle == "In cinemas · 2026-07-10")
+        #expect(items[1].subtitle == "Digital · 2026-08-25")
 
         // Third movie has only a cinema date and is unmonitored.
         #expect(items[2].subtitle == "In cinemas · 2026-07-22")

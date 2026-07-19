@@ -293,7 +293,9 @@ extension SonarrClient: UpcomingListing, HistoryListing, MissingListing {
         let end = start.addingTimeInterval(Double(max(days, 0)) * 86_400)
         let episodes = try await fetchCalendar(start: start, end: end)
         return episodes.prefix(Self.listingCap).map { episode in
-            let air = dateOnly(episode.airDateUtc) ?? dateOnly(episode.airDate)
+            // Prefer the broadcast `airDate` (yyyy-MM-dd, no timezone) over the UTC timestamp, which
+            // renders a day late for evening airings in timezones behind UTC.
+            let air = dateOnly(episode.airDate) ?? dateOnly(episode.airDateUtc)
             return ActivityItem(
                 id: episodeStableId(episode, prefix: "upcoming"),
                 title: episodeTitle(episode),
@@ -355,7 +357,7 @@ extension SonarrClient: UpcomingListing, HistoryListing, MissingListing {
             ActivityItem(
                 id: episodeStableId(episode, prefix: "missing"),
                 title: episodeTitle(episode),
-                subtitle: dateOnly(episode.airDateUtc) ?? dateOnly(episode.airDate),
+                subtitle: dateOnly(episode.airDate) ?? dateOnly(episode.airDateUtc),
                 status: "Missing",
                 fields: [
                     .init(label: "Monitored", value: monitoredText(episode.monitored)),

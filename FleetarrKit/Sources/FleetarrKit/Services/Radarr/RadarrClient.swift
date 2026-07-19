@@ -266,8 +266,12 @@ extension RadarrClient: UpcomingListing {
             ],
             headers: authHeaders
         )
+        let today = String(iso.string(from: now).prefix(10))
         return movies.prefix(Self.listingPageSize).enumerated().map { index, movie in
-            let nearest = Self.nearestRelease(movie)
+            // Prefer the next release ON OR AFTER today: a movie can be pulled into the window by a
+            // future digital release while still carrying a past theatrical date, and labelling that
+            // past date "Upcoming" is misleading.
+            let nearest = Self.nextRelease(movie, onOrAfter: today)
             let hasFile = movie.hasFile ?? false
             var fields = Self.releaseCandidates(movie).map {
                 ActivityItem.Field(label: $0.label, value: Self.formatDate($0.raw))
@@ -394,6 +398,17 @@ private extension RadarrClient {
     /// unparseable/short values simply sort as written, which is deterministic and good enough.
     static func nearestRelease(_ movie: RadarrListMovie) -> (label: String, raw: String)? {
         releaseCandidates(movie).min { $0.raw < $1.raw }
+    }
+
+    /// The earliest release date on or after `referenceDay` (yyyy-MM-dd), falling back to the
+    /// earliest known date when none are in the future. Used for the calendar/upcoming context so a
+    /// past theatrical date isn't presented as the upcoming release.
+    static func nextRelease(_ movie: RadarrListMovie, onOrAfter referenceDay: String) -> (label: String, raw: String)? {
+        let candidates = releaseCandidates(movie)
+        let upcoming = candidates
+            .filter { String($0.raw.prefix(10)) >= referenceDay }
+            .min { $0.raw < $1.raw }
+        return upcoming ?? candidates.min { $0.raw < $1.raw }
     }
 
     /// A short, human label for a MovieHistoryEventType.
