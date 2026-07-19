@@ -26,5 +26,19 @@ struct FleetarrApp: App {
         #if os(macOS)
         .defaultSize(width: 960, height: 680)
         #endif
+
+        #if os(macOS)
+        // Glanceable menu-bar extra (spec §9.7): the fleet's combined problem count at a glance.
+        MenuBarExtra {
+            MenuBarContent()
+                .environment(store)
+                .modelContainer(container)
+        } label: {
+            Image(systemName: store.summary.problemBadgeCount == 0
+                  ? "shippingbox"
+                  : "exclamationmark.triangle.fill")
+        }
+        .menuBarExtraStyle(.window)
+        #endif
     }
 }
