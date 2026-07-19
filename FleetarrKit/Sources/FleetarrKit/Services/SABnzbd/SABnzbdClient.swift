@@ -239,3 +239,38 @@ extension SABnzbdClient: QueueItemRemoving, DownloadControlling {
         try Self.checkForSABError(response.data)
     }
 }
+
+// MARK: - History listing (spec §6.1, §6.4)
+
+extension SABnzbdClient: HistoryListing {
+    /// Recent completed/failed downloads for the detail screen's secondary history list (spec §6.4).
+    ///
+    /// Reuses the existing `fetchHistoryRaw` (which already runs `checkForSABError` on the HTTP-200
+    /// error body) and the shared severity classifier, then surfaces genuine failures first while
+    /// keeping the server's order for everything else.
+    public func fetchRecentHistory() async throws(FleetError) -> [ActivityItem] {
+        let history = try await fetchHistoryRaw(limit: 30)
+        let items = (history.slots ?? []).map { slot -> ActivityItem in
+            var fields: [ActivityItem.Field] = [
+                .init(label: "Size", value: slot.size ?? "—"),
+            ]
+            if let reason = slot.failMessage?.trimmingCharacters(in: .whitespacesAndNewlines),
+               !reason.isEmpty {
+                fields.append(.init(label: "Failed reason", value: reason))
+            }
+            return ActivityItem(
+                id: slot.nzoId,
+                title: slot.name,
+                subtitle: slot.category,
+                status: slot.status,
+                severity: classify(slot.status, slot.failMessage),
+                fields: fields
+            )
+        }
+        // Surface genuine failures (.error) first; cosmetic/healthy rows keep server order. Both
+        // filters are stable, so relative order within each group is preserved.
+        let failures = items.filter { $0.severity == .error }
+        let rest = items.filter { $0.severity != .error }
+        return failures + rest
+    }
+}

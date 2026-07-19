@@ -8,6 +8,7 @@ struct InstanceDetailView: View {
     @Environment(FleetStore.self) private var store
     let instance: FleetInstance
 
+    @State private var service: (any FleetService)?
     @State private var activity: [ActivityItem] = []
     @State private var isLoading = false
     @State private var loadError: FleetError?
@@ -19,59 +20,11 @@ struct InstanceDetailView: View {
 
     var body: some View {
         List {
-            Section("Status") {
-                StatusIndicator(state: configured ? (status?.health ?? .unknown) : .unknown)
-                if !configured {
-                    Label("No credentials stored for this instance", systemImage: "key.slash")
-                        .font(.caption)
-                        .foregroundStyle(.orange)
-                }
-                if let summary = status?.summaryLine {
-                    Text(summary).foregroundStyle(.secondary)
-                }
-                if let chips = status?.headline, !chips.isEmpty {
-                    ScrollView(.horizontal) {
-                        HStack(spacing: 6) { ForEach(chips) { MetricChipView(chip: $0) } }
-                    }
-                    .scrollIndicators(.hidden)
-                }
-            }
-
-            if let problems = status?.problems, !problems.isEmpty {
-                Section("Problems") {
-                    ForEach(problems) { ProblemRow(problem: $0) }
-                }
-            }
-
-            Section(instance.serviceType.primaryActivityNoun) {
-                if isLoading {
-                    HStack { ProgressView(); Text("Loading…").foregroundStyle(.secondary) }
-                } else if let loadError {
-                    Label(loadError.userMessage, systemImage: "exclamationmark.triangle")
-                        .font(.callout)
-                        .foregroundStyle(.orange)
-                } else if activity.isEmpty {
-                    Text("Nothing active").foregroundStyle(.secondary)
-                } else {
-                    ForEach(activity) { item in
-                        ActivityRow(item: item)
-                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                                trailingActions(for: item)
-                            }
-                            .swipeActions(edge: .leading) {
-                                leadingActions(for: item)
-                            }
-                    }
-                }
-            }
-
-            if let url = instance.baseURL {
-                Section {
-                    Link(destination: url) {
-                        Label("Open \(instance.serviceType.displayName) web UI", systemImage: "safari")
-                    }
-                }
-            }
+            statusSection
+            problemsSection
+            primaryActivitySection
+            listingSections
+            webUISection
         }
         .navigationTitle(instance.label)
         #if os(iOS)
@@ -115,10 +68,102 @@ struct InstanceDetailView: View {
         } message: {
             Text(actionError ?? "")
         }
-        .task { await load() }
+        .task {
+            if service == nil { service = store.service(for: instance) }
+            await load()
+        }
         .refreshable {
             await store.refresh()
             await load()
+        }
+    }
+
+    // MARK: Sections
+
+    @ViewBuilder private var statusSection: some View {
+        Section("Status") {
+            StatusIndicator(state: configured ? (status?.health ?? .unknown) : .unknown)
+            if !configured {
+                Label("No credentials stored for this instance", systemImage: "key.slash")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
+            if let summary = status?.summaryLine {
+                Text(summary).foregroundStyle(.secondary)
+            }
+            if let chips = status?.headline, !chips.isEmpty {
+                ScrollView(.horizontal) {
+                    HStack(spacing: 6) { ForEach(chips) { MetricChipView(chip: $0) } }
+                }
+                .scrollIndicators(.hidden)
+            }
+        }
+    }
+
+    @ViewBuilder private var problemsSection: some View {
+        if let problems = status?.problems, !problems.isEmpty {
+            Section("Problems") {
+                ForEach(problems) { ProblemRow(problem: $0) }
+            }
+        }
+    }
+
+    @ViewBuilder private var primaryActivitySection: some View {
+        Section(instance.serviceType.primaryActivityNoun) {
+            if isLoading {
+                HStack { ProgressView(); Text("Loading…").foregroundStyle(.secondary) }
+            } else if let loadError {
+                Label(loadError.userMessage, systemImage: "exclamationmark.triangle")
+                    .font(.callout)
+                    .foregroundStyle(.orange)
+            } else if activity.isEmpty {
+                Text("Nothing active").foregroundStyle(.secondary)
+            } else {
+                ForEach(activity) { item in
+                    ActivityRow(item: item)
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            trailingActions(for: item)
+                        }
+                        .swipeActions(edge: .leading) {
+                            leadingActions(for: item)
+                        }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder private var listingSections: some View {
+        if let service {
+            if let listing = service as? UpcomingListing {
+                LazyActivityDisclosure(title: "Upcoming", systemImage: "calendar") {
+                    await activityResult { try await listing.fetchUpcoming(days: 7) }
+                }
+            }
+            if let listing = service as? MissingListing {
+                LazyActivityDisclosure(title: "Missing", systemImage: "tray.and.arrow.down") {
+                    await activityResult { try await listing.fetchMissing() }
+                }
+            }
+            if let listing = service as? HistoryListing {
+                LazyActivityDisclosure(title: "History", systemImage: "clock.arrow.circlepath") {
+                    await activityResult { try await listing.fetchRecentHistory() }
+                }
+            }
+            if let listing = service as? RecentlyAddedListing {
+                LazyActivityDisclosure(title: "Recently added", systemImage: "sparkles") {
+                    await activityResult { try await listing.fetchRecentlyAdded() }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder private var webUISection: some View {
+        if let url = instance.baseURL {
+            Section {
+                Link(destination: url) {
+                    Label("Open \(instance.serviceType.displayName) web UI", systemImage: "safari")
+                }
+            }
         }
     }
 
@@ -200,7 +245,7 @@ struct InstanceDetailView: View {
     }
 
     private func load() async {
-        guard let service = store.service(for: instance) else {
+        guard let service else {
             activity = []
             return
         }
@@ -211,6 +256,82 @@ struct InstanceDetailView: View {
             activity = try await service.fetchActivity()
         } catch {
             loadError = error
+        }
+    }
+}
+
+/// Wraps a listing fetch into a `Result` for the lazy disclosure sections. Takes an untyped
+/// throwing closure (typed-throws doesn't propagate cleanly through an existential here) and
+/// narrows to `FleetError` in the catch.
+private func activityResult(
+    _ body: () async throws -> [ActivityItem]
+) async -> Result<[ActivityItem], FleetError> {
+    do {
+        return .success(try await body())
+    } catch let error as FleetError {
+        return .failure(error)
+    } catch {
+        return .failure(.transport("Couldn't load"))
+    }
+}
+
+/// A collapsible detail section (Upcoming / Missing / History / Recently added) that loads its list
+/// on first expand, so the detail screen opens fast and only fetches what you look at (spec §6).
+private struct LazyActivityDisclosure: View {
+    let title: String
+    let systemImage: String
+    let load: () async -> Result<[ActivityItem], FleetError>
+
+    @State private var expanded = false
+    @State private var phase: Phase = .idle
+
+    private enum Phase {
+        case idle, loading
+        case loaded([ActivityItem])
+        case failed(FleetError)
+    }
+
+    var body: some View {
+        Section {
+            DisclosureGroup(isExpanded: $expanded) {
+                content
+            } label: {
+                Label(title, systemImage: systemImage)
+                    .font(.subheadline.weight(.medium))
+            }
+        }
+        .onChange(of: expanded) { _, isOpen in
+            if isOpen, case .idle = phase {
+                Task { await performLoad() }
+            }
+        }
+    }
+
+    @ViewBuilder private var content: some View {
+        switch phase {
+        case .idle, .loading:
+            HStack(spacing: 8) {
+                ProgressView().controlSize(.small)
+                Text("Loading…").font(.caption).foregroundStyle(.secondary)
+            }
+        case .loaded(let items):
+            if items.isEmpty {
+                Text("Nothing here").font(.caption).foregroundStyle(.secondary)
+            } else {
+                ForEach(items) { ActivityRow(item: $0) }
+            }
+        case .failed(let error):
+            Label(error.userMessage, systemImage: "exclamationmark.triangle")
+                .font(.caption)
+                .foregroundStyle(.orange)
+        }
+    }
+
+    private func performLoad() async {
+        phase = .loading
+        switch await load() {
+        case .success(let items): phase = .loaded(items)
+        case .failure(let error): phase = .failed(error)
         }
     }
 }

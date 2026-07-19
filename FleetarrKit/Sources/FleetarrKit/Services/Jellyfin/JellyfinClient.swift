@@ -137,6 +137,81 @@ public struct JellyfinClient: FleetService {
     }
 }
 
+// MARK: - Recently-added listing (spec §6.6)
+
+extension JellyfinClient: RecentlyAddedListing {
+    /// Recently-added library items via GET /Items/Latest, which returns a bare BaseItemDto array
+    /// (no `{ Items, TotalRecordCount }` wrapper). We deliberately omit `userId` and let the server
+    /// infer the current user from the token — the research confirms the tokened form works without
+    /// one, so this avoids a second round-trip just to resolve a user id. Capped at 30 items.
+    public func fetchRecentlyAdded() async throws(FleetError) -> [ActivityItem] {
+        let items = try await context.fetchJSON(
+            [JellyfinLatestItem].self,
+            path: "/Items/Latest",
+            query: [URLQueryItem(name: "Limit", value: "30")],
+            headers: authHeaders
+        )
+        return items.map(recentlyAddedItem(for:))
+    }
+
+    /// Maps one BaseItemDto to the generic activity row. These are library additions, not failures,
+    /// so `severity` is always nil and `progress` is unused.
+    private func recentlyAddedItem(for item: JellyfinLatestItem) -> ActivityItem {
+        let name = item.name ?? "Unknown"
+        let title: String
+        if let series = item.seriesName, !series.isEmpty {
+            title = "\(series) — \(name)"   // e.g. "Severance — Chapter 7"
+        } else {
+            title = name                    // movies/series just use their own name
+        }
+
+        var fields: [ActivityItem.Field] = [
+            .init(label: "Added", value: formatAdded(item.dateCreated) ?? "—"),
+        ]
+        if let runtime = formatRuntime(ticks: item.runTimeTicks) {
+            fields.append(.init(label: "Runtime", value: runtime))
+        }
+
+        return ActivityItem(
+            id: item.id ?? "\(title)|\(item.dateCreated ?? "")",   // stable fallback if Id is absent
+            title: title,
+            subtitle: item.type,
+            progress: nil,
+            status: item.productionYear.map { String($0) },
+            severity: nil,
+            fields: fields
+        )
+    }
+
+    /// Formats a Jellyfin ISO8601 timestamp ("2026-07-18T09:02:11.0000000Z") as a short calendar
+    /// date ("Jul 18, 2026"). Jellyfin emits .NET-style 7-digit fractional seconds, which trips the
+    /// standard ISO8601 parsers, so we format just the leading `yyyy-MM-dd` portion with a fixed
+    /// POSIX-locale formatter — deterministic and free of fractional-second parsing fragility.
+    private func formatAdded(_ raw: String?) -> String? {
+        guard let raw, !raw.isEmpty else { return nil }
+        let datePart = String(raw.prefix(10))
+        let input = DateFormatter()
+        input.locale = Locale(identifier: "en_US_POSIX")
+        input.timeZone = TimeZone(identifier: "UTC")
+        input.dateFormat = "yyyy-MM-dd"
+        guard let date = input.date(from: datePart) else { return raw }
+        let output = DateFormatter()
+        output.locale = Locale(identifier: "en_US_POSIX")
+        output.timeZone = TimeZone(identifier: "UTC")
+        output.dateFormat = "MMM d, yyyy"
+        return output.string(from: date)
+    }
+
+    /// Human runtime ("2h 45m" / "46m") from .NET ticks (10,000,000 per second), or nil if absent.
+    private func formatRuntime(ticks: Int64?) -> String? {
+        guard let ticks, ticks > 0 else { return nil }
+        let totalMinutes = Int(ticks / 10_000_000 / 60)
+        let hours = totalMinutes / 60
+        let minutes = totalMinutes % 60
+        return hours > 0 ? "\(hours)h \(minutes)m" : "\(minutes)m"
+    }
+}
+
 // MARK: - Write actions (spec §6.6)
 
 extension JellyfinClient: SessionTerminating {

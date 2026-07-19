@@ -1,0 +1,40 @@
+{
+  "page": 1,
+  "pageSize": 30,
+  "sortKey": "movieMetadata.sortTitle",
+  "sortDirection": "ascending",
+  "totalRecords": 2,
+  "records": [
+    {
+      "id": 900,
+      "title": "A Movie We Don't Have Yet",
+      "year": 2023,
+      "status": "released",
+      "tmdbId": 222333,
+      "imdbId": "tt3333333",
+      "inCinemas": "2023-06-02T00:00:00Z",
+      "digitalRelease": "2023-08-15T00:00:00Z",
+      "physicalRelease": "2023-09-05T00:00:00Z",
+      "hasFile": false,
+      "monitored": true,
+      "isAvailable": true,
+      "minimumAvailability": "released",
+      "runtime": 132,
+      "sizeOnDisk": 0
+    },
+    {
+      "id": 950,
+      "title": "Not Released Yet",
+      "year": 2027,
+      "status": "announced",
+      "tmdbId": 444555,
+      "imdbId": "tt5555555",
+      "inCinemas": "2027-01-20T00:00:00Z",
+      "hasFile": false,
+      "monitored": true,
+      "isAvailable": false,
+      "minimumAvailability": "released",
+      "sizeOnDisk": 0
+    }
+  ]
+}

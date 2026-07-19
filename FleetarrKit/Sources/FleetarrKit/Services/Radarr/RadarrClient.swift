@@ -241,6 +241,192 @@ public struct RadarrClient: FleetService {
     }
 }
 
+// MARK: - Detail-screen secondary lists (spec §6.1)
+//
+// Read-only lists the Radarr detail screen renders below the primary queue activity: the calendar
+// (Upcoming), recent history (grabs / imports / failures), and wanted-but-missing movies. Each maps
+// to the generic `ActivityItem`. Decoding stays tolerant (all model fields optional) and results are
+// capped at `listingPageSize` so a huge library can't flood the UI.
+
+extension RadarrClient: UpcomingListing {
+    /// Movies with a release date inside the next `days`-day window, from `GET /api/v3/calendar`.
+    /// `title` is the movie name (+ year), `subtitle` the nearest known release date, and `status`
+    /// is "Available" when the file already exists on disk, otherwise "Upcoming".
+    public func fetchUpcoming(days: Int) async throws(FleetError) -> [ActivityItem] {
+        let now = Date()
+        let end = now.addingTimeInterval(TimeInterval(max(days, 1)) * 86_400)
+        let iso = ISO8601DateFormatter()
+        let movies = try await context.fetchJSON(
+            [RadarrListMovie].self,
+            path: "/api/v3/calendar",
+            query: [
+                URLQueryItem(name: "start", value: iso.string(from: now)),
+                URLQueryItem(name: "end", value: iso.string(from: end)),
+                URLQueryItem(name: "unmonitored", value: "false"),
+            ],
+            headers: authHeaders
+        )
+        return movies.prefix(Self.listingPageSize).enumerated().map { index, movie in
+            let nearest = Self.nearestRelease(movie)
+            let hasFile = movie.hasFile ?? false
+            var fields = Self.releaseCandidates(movie).map {
+                ActivityItem.Field(label: $0.label, value: Self.formatDate($0.raw))
+            }
+            fields.append(.init(label: "Monitored", value: (movie.monitored ?? false) ? "Yes" : "No"))
+            return ActivityItem(
+                id: Self.listingID(movie, fallbackIndex: index, prefix: "calendar"),
+                title: Self.movieTitle(movie),
+                subtitle: nearest.map { "\($0.label) · \(Self.formatDate($0.raw))" } ?? "No release date",
+                status: hasFile ? "Available" : "Upcoming",
+                severity: nil,
+                fields: Array(fields.prefix(4))
+            )
+        }
+    }
+}
+
+extension RadarrClient: HistoryListing {
+    /// The most recent grabs / imports / failures from `GET /api/v3/history` (newest first). A
+    /// `downloadFailed` / `importFailed` event carries `.error` severity so the UI can surface it.
+    public func fetchRecentHistory() async throws(FleetError) -> [ActivityItem] {
+        let response = try await context.fetchJSON(
+            RadarrHistoryResponse.self,
+            path: "/api/v3/history",
+            query: [
+                URLQueryItem(name: "pageSize", value: String(Self.listingPageSize)),
+                URLQueryItem(name: "sortKey", value: "date"),
+                URLQueryItem(name: "sortDirection", value: "descending"),
+                URLQueryItem(name: "includeMovie", value: "true"),
+            ],
+            headers: authHeaders
+        )
+        return (response.records ?? []).enumerated().map { index, record in
+            let title = record.movie.map(Self.movieTitle) ?? record.sourceTitle ?? "Unknown"
+            var fields: [ActivityItem.Field] = []
+            if let quality = record.quality?.quality?.name, !quality.isEmpty {
+                fields.append(.init(label: "Quality", value: quality))
+            }
+            if let indexer = record.data?.indexer, !indexer.isEmpty {
+                fields.append(.init(label: "Indexer", value: indexer))
+            } else if let client = record.data?.downloadClient, !client.isEmpty {
+                fields.append(.init(label: "Client", value: client))
+            }
+            if let source = record.sourceTitle, !source.isEmpty, source != title {
+                fields.append(.init(label: "Release", value: source))
+            }
+            return ActivityItem(
+                id: record.id.map { "history:\($0)" } ?? "history:\(index)",
+                title: title,
+                subtitle: Self.formatDate(record.date),
+                status: Self.historyEventLabel(record.eventType),
+                severity: Self.historyIsFailure(record.eventType) ? .error : nil,
+                fields: Array(fields.prefix(4))
+            )
+        }
+    }
+}
+
+extension RadarrClient: MissingListing {
+    /// Monitored movies with no file yet, from `GET /api/v3/wanted/missing`. `title` is the movie
+    /// (+ year), `subtitle` the nearest release date, and the fields flag whether it's monitored and
+    /// available to search. No severity — a wanted movie is a normal state, not a problem.
+    public func fetchMissing() async throws(FleetError) -> [ActivityItem] {
+        let response = try await context.fetchJSON(
+            RadarrMissingListResponse.self,
+            path: "/api/v3/wanted/missing",
+            query: [
+                URLQueryItem(name: "pageSize", value: String(Self.listingPageSize)),
+                URLQueryItem(name: "sortKey", value: "movieMetadata.sortTitle"),
+                URLQueryItem(name: "sortDirection", value: "ascending"),
+                URLQueryItem(name: "monitored", value: "true"),
+            ],
+            headers: authHeaders
+        )
+        return (response.records ?? []).enumerated().map { index, movie in
+            let nearest = Self.nearestRelease(movie)
+            let available = movie.isAvailable ?? false
+            return ActivityItem(
+                id: Self.listingID(movie, fallbackIndex: index, prefix: "missing"),
+                title: Self.movieTitle(movie),
+                subtitle: nearest.map { "\($0.label) · \(Self.formatDate($0.raw))" } ?? "No release date",
+                status: available ? "Wanted" : "Not yet available",
+                severity: nil,
+                fields: [
+                    .init(label: "Monitored", value: (movie.monitored ?? false) ? "Yes" : "No"),
+                    .init(label: "Available", value: available ? "Yes" : "No"),
+                ]
+            )
+        }
+    }
+}
+
+// MARK: - Listing helpers (shared by the three lists above)
+
+private extension RadarrClient {
+    /// Cap for each secondary list so a large library can't flood the detail screen (spec §6.1).
+    static var listingPageSize: Int { 30 }
+
+    /// "Title (Year)" when a year is present, otherwise just the title.
+    static func movieTitle(_ movie: RadarrListMovie) -> String {
+        let title = movie.title ?? "Unknown"
+        if let year = movie.year, year > 0 { return "\(title) (\(year))" }
+        return title
+    }
+
+    /// A stable id for a listing row: prefer the movie's own id, else a per-list positional key.
+    static func listingID(_ movie: RadarrListMovie, fallbackIndex: Int, prefix: String) -> String {
+        if let id = movie.id { return "\(prefix):\(id)" }
+        return "\(prefix):\(fallbackIndex)"
+    }
+
+    /// The present release dates on a movie, labelled and in a stable order.
+    static func releaseCandidates(_ movie: RadarrListMovie) -> [(label: String, raw: String)] {
+        var out: [(label: String, raw: String)] = []
+        if let value = movie.inCinemas, !value.isEmpty { out.append(("In cinemas", value)) }
+        if let value = movie.digitalRelease, !value.isEmpty { out.append(("Digital", value)) }
+        if let value = movie.physicalRelease, !value.isEmpty { out.append(("Physical", value)) }
+        if out.isEmpty, let value = movie.releaseDate, !value.isEmpty { out.append(("Release", value)) }
+        return out
+    }
+
+    /// The chronologically earliest known release date. ISO-8601 timestamps in the same format
+    /// sort chronologically as plain strings, so no `Date` parsing (or formatter) is needed here;
+    /// unparseable/short values simply sort as written, which is deterministic and good enough.
+    static func nearestRelease(_ movie: RadarrListMovie) -> (label: String, raw: String)? {
+        releaseCandidates(movie).min { $0.raw < $1.raw }
+    }
+
+    /// A short, human label for a MovieHistoryEventType.
+    static func historyEventLabel(_ eventType: String?) -> String {
+        switch eventType?.lowercased() {
+        case "grabbed": return "Grabbed"
+        case "downloadfolderimported", "moviefolderimported": return "Imported"
+        case "downloadfailed": return "Download failed"
+        case "importfailed": return "Import failed"
+        case "moviefiledeleted": return "File deleted"
+        case "moviefilerenamed": return "Renamed"
+        case "downloadignored": return "Ignored"
+        case let other?: return other.capitalized
+        case nil: return "Event"
+        }
+    }
+
+    /// Whether a history event represents a failure (→ `.error` severity).
+    static func historyIsFailure(_ eventType: String?) -> Bool {
+        (eventType?.lowercased() ?? "").contains("failed")
+    }
+
+    /// Renders an ISO-8601 timestamp as its calendar date, falling back to the raw value. Kept
+    /// simple and deterministic (no locale/timezone drift) for the compact detail row.
+    static func formatDate(_ raw: String?) -> String {
+        guard let raw, !raw.isEmpty else { return "—" }
+        if let tIndex = raw.firstIndex(of: "T") {
+            return String(raw[raw.startIndex..<tIndex])
+        }
+        return raw
+    }
+}
+
 // MARK: - Write actions (spec §6.1)
 
 extension RadarrClient: QueueItemRemoving {

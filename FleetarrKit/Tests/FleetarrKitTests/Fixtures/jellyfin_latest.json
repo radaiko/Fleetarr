@@ -1,0 +1,35 @@
+[
+  {
+    "Name": "Dune: Part Two",
+    "Id": "1122334455667788990011223344abcd",
+    "Type": "Movie",
+    "RunTimeTicks": 99000000000,
+    "ProductionYear": 2024,
+    "DateCreated": "2026-07-18T09:02:11.0000000Z",
+    "ImageTags": { "Primary": "e3b0c44298fc1c149afbf4c8996fb924" },
+    "UserData": { "Played": false, "PlaybackPositionTicks": 0, "PlayCount": 0 }
+  },
+  {
+    "Name": "Chapter 7",
+    "Id": "aabb112233445566778899ccddeeff00",
+    "Type": "Episode",
+    "SeriesName": "Severance",
+    "ParentIndexNumber": 2,
+    "IndexNumber": 7,
+    "RunTimeTicks": 27600000000,
+    "DateCreated": "2026-07-17T22:41:05.0000000Z",
+    "ImageTags": { "Primary": "5d41402abc4b2a76b9719d911017c592" },
+    "UserData": { "Played": false, "PlaybackPositionTicks": 0, "PlayCount": 0 }
+  },
+  {
+    "Name": "The Bear",
+    "Id": "77aa88bb99cc00dd11ee22ff33445566",
+    "Type": "Series",
+    "ProductionYear": 2022,
+    "DateCreated": "2026-07-16T12:00:00.0000000Z"
+  },
+  {
+    "Name": "Nosferatu",
+    "Type": "Movie"
+  }
+]

@@ -179,6 +179,77 @@ public struct PlexClient: FleetService {
     }
 }
 
+// MARK: - Recently added (spec §6.5)
+
+extension PlexClient: RecentlyAddedListing {
+    /// Cap the recently-added feed so a large library can't produce an unbounded list. The value is
+    /// sent to the server (`X-Plex-Container-Size`) and re-applied as a `prefix` defensively.
+    private static var recentlyAddedLimit: Int { 30 }
+
+    /// The detail screen's "Recently Added" list: the most recent library additions mapped to
+    /// generic ``ActivityItem`` rows (spec §6.5). These are library items, not problems, so every
+    /// row carries `nil` severity and `nil` progress.
+    public func fetchRecentlyAdded() async throws(FleetError) -> [ActivityItem] {
+        let container = try await fetchRecentlyAddedRaw()
+        // A shared, read-only formatter for the whole batch (cheaper than one per row).
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return (container.metadata ?? [])
+            .prefix(Self.recentlyAddedLimit)
+            .map { recentlyAddedItem(from: $0, dateFormatter: formatter) }
+    }
+
+    private func fetchRecentlyAddedRaw() async throws(FleetError) -> PlexRecentlyAdded {
+        // Ask Plex to page the payload so a huge library stays cheap (spec: X-Plex-Container-Size).
+        var headers = authHeaders
+        headers["X-Plex-Container-Start"] = "0"
+        headers["X-Plex-Container-Size"] = String(Self.recentlyAddedLimit)
+        let response = try await context.fetchJSON(
+            PlexRecentlyAddedResponse.self,
+            path: "/library/recentlyAdded",
+            headers: headers
+        )
+        return response.mediaContainer
+    }
+
+    func recentlyAddedItem(from item: PlexLibraryItem, dateFormatter: DateFormatter) -> ActivityItem {
+        var fields: [ActivityItem.Field] = []
+        if let added = addedDate(from: item.addedAt, formatter: dateFormatter) {
+            fields.append(.init(label: "Added", value: added))
+        }
+
+        return ActivityItem(
+            id: item.ratingKey ?? item.key ?? UUID().uuidString,
+            title: recentlyAddedTitle(for: item),
+            // "Movie" / "Episode" / "Season" — the item's media type, capitalized.
+            subtitle: nonEmpty(item.type).map { $0.capitalized },
+            progress: nil,
+            // Release year, when the server knows it.
+            status: item.year.map(String.init),
+            // A library item is not a problem, so it carries no severity (spec §6.5).
+            severity: nil,
+            fields: fields
+        )
+    }
+
+    /// "Show — Episode" for episodes, otherwise the item's own title (movies, seasons).
+    private func recentlyAddedTitle(for item: PlexLibraryItem) -> String {
+        let show = nonEmpty(item.grandparentTitle)
+        let name = nonEmpty(item.title)
+        if item.type?.lowercased() == "episode", let show {
+            if let name { return "\(show) — \(name)" }
+            return show
+        }
+        return name ?? show ?? "Unknown"
+    }
+
+    private func addedDate(from epoch: Int?, formatter: DateFormatter) -> String? {
+        guard let epoch else { return nil }
+        return formatter.string(from: Date(timeIntervalSince1970: TimeInterval(epoch)))
+    }
+}
+
 // MARK: - Write actions (spec §6.5)
 
 extension PlexClient: SessionTerminating {

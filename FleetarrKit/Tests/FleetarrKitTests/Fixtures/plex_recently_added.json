@@ -1,0 +1,44 @@
+{
+  "MediaContainer": {
+    "size": 4,
+    "Metadata": [
+      {
+        "ratingKey": "50123",
+        "key": "/library/metadata/50123",
+        "type": "episode",
+        "title": "The Rains of Castamere",
+        "grandparentTitle": "Game of Thrones",
+        "parentTitle": "Season 3",
+        "year": 2013,
+        "addedAt": 1721300000,
+        "updatedAt": 1721300500,
+        "summary": "Robb and Catelyn arrive at the Twins for the wedding."
+      },
+      {
+        "ratingKey": "60234",
+        "key": "/library/metadata/60234",
+        "type": "movie",
+        "title": "Blade Runner 2049",
+        "year": 2017,
+        "addedAt": 1721200000,
+        "updatedAt": 1721200500,
+        "summary": "A young blade runner uncovers a long-buried secret."
+      },
+      {
+        "ratingKey": "70345",
+        "key": "/library/metadata/70345",
+        "type": "season",
+        "title": "Season 2",
+        "grandparentTitle": "Severance",
+        "parentTitle": "Severance",
+        "addedAt": 1721100000,
+        "updatedAt": 1721100500
+      },
+      {
+        "key": "/library/metadata/80456",
+        "type": "movie",
+        "title": "Untitled Documentary"
+      }
+    ]
+  }
+}

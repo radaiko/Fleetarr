@@ -1,0 +1,30 @@
+[
+  {
+    "id": 35001,
+    "seriesId": 7,
+    "seasonNumber": 2,
+    "episodeNumber": 6,
+    "title": "Fallout",
+    "airDate": "2026-07-22",
+    "airDateUtc": "2026-07-23T01:00:00Z",
+    "overview": "...",
+    "hasFile": false,
+    "monitored": true,
+    "episodeFileId": 0,
+    "series": { "id": 7, "title": "Example Series", "titleSlug": "example-series", "status": "continuing" }
+  },
+  {
+    "id": 35002,
+    "seriesId": 12,
+    "seasonNumber": 3,
+    "episodeNumber": 8,
+    "title": "Aftermath",
+    "airDate": "2026-07-24",
+    "airDateUtc": "2026-07-25T01:00:00Z",
+    "overview": "...",
+    "hasFile": true,
+    "monitored": false,
+    "episodeFileId": 991,
+    "series": { "id": 12, "title": "Some Show", "titleSlug": "some-show", "status": "continuing" }
+  }
+]

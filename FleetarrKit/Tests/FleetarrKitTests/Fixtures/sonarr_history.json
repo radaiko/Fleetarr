@@ -1,0 +1,43 @@
+{
+  "page": 1,
+  "pageSize": 30,
+  "sortKey": "date",
+  "sortDirection": "descending",
+  "totalRecords": 5231,
+  "records": [
+    {
+      "id": 998877,
+      "episodeId": 34122,
+      "seriesId": 12,
+      "sourceTitle": "Some.Show.S03E07.1080p.WEB.h264-GROUP",
+      "quality": { "quality": { "id": 6, "name": "WEBDL-1080p" }, "revision": { "version": 1, "real": 0 } },
+      "qualityCutoffNotMet": false,
+      "date": "2026-07-19T06:58:02Z",
+      "downloadId": "SABnzbd_nzo_abc123",
+      "eventType": "downloadFolderImported",
+      "data": { "droppedPath": "/downloads/Some.Show.S03E07", "importedPath": "/tv/Some Show/Season 03", "downloadClient": "SABnzbd", "indexer": "NZBgeek" }
+    },
+    {
+      "id": 998876,
+      "episodeId": 34122,
+      "seriesId": 12,
+      "sourceTitle": "Some.Show.S03E07.1080p.WEB.h264-GROUP",
+      "quality": { "quality": { "id": 6, "name": "WEBDL-1080p" } },
+      "date": "2026-07-19T06:41:55Z",
+      "downloadId": "SABnzbd_nzo_abc123",
+      "eventType": "grabbed",
+      "data": { "indexer": "NZBgeek", "releaseGroup": "GROUP", "downloadClient": "SABnzbd" }
+    },
+    {
+      "id": 998875,
+      "episodeId": 55003,
+      "seriesId": 22,
+      "sourceTitle": "Broken.Show.S04E11.2160p.WEB.h265-GROUP",
+      "quality": { "quality": { "id": 20, "name": "WEBDL-2160p" } },
+      "date": "2026-07-19T05:12:00Z",
+      "downloadId": "SABnzbd_nzo_ghi789",
+      "eventType": "downloadFailed",
+      "data": { "indexer": "DrunkenSlug", "message": "not enough disk space" }
+    }
+  ]
+}

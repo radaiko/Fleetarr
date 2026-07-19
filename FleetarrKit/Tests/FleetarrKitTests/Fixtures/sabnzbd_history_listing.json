@@ -1,0 +1,66 @@
+{
+  "history": {
+    "noofslots": 3,
+    "day_size": "18.3 GB",
+    "week_size": "142.7 GB",
+    "month_size": "603.1 GB",
+    "total_size": "8.4 TB",
+    "last_history_update": 1752960112,
+    "slots": [
+      {
+        "nzo_id": "SABnzbd_nzo_ghi789",
+        "name": "Some.Movie.2025.1080p.BluRay.x264-GRP",
+        "nzb_name": "Some.Movie.2025.1080p.BluRay.x264-GRP.nzb",
+        "status": "Completed",
+        "fail_message": "",
+        "category": "movies",
+        "size": "8.6 GB",
+        "bytes": 9233472204,
+        "downloaded": 9233472204,
+        "storage": "/data/media/movies/Some.Movie.2025.1080p.BluRay.x264-GRP",
+        "path": "/data/incomplete/Some.Movie.2025.1080p.BluRay.x264-GRP",
+        "download_time": 372,
+        "postproc_time": 41,
+        "completed": 1752959011,
+        "time_added": 1752958560,
+        "retry": 0
+      },
+      {
+        "nzo_id": "SABnzbd_nzo_jkl012",
+        "name": "Some.Show.S03E05.2160p.WEB.H265-GRP",
+        "nzb_name": "Some.Show.S03E05.2160p.WEB.H265-GRP.nzb",
+        "status": "Failed",
+        "fail_message": "Repair failed, not enough repair blocks (129 short)",
+        "category": "tv",
+        "size": "3.1 GB",
+        "bytes": 3328599654,
+        "downloaded": 3202519040,
+        "storage": "",
+        "path": "/data/incomplete/Some.Show.S03E05.2160p.WEB.H265-GRP",
+        "download_time": 210,
+        "postproc_time": 7,
+        "completed": 1752955330,
+        "time_added": 1752955020,
+        "retry": 1
+      },
+      {
+        "nzo_id": "SABnzbd_nzo_mno345",
+        "name": "Another.Movie.2024.1080p.WEB-DL-GRP",
+        "nzb_name": "Another.Movie.2024.1080p.WEB-DL-GRP.nzb",
+        "status": "Extracting",
+        "fail_message": "",
+        "category": "movies",
+        "size": "5.4 GB",
+        "bytes": 5798205849,
+        "downloaded": 5798205849,
+        "storage": "",
+        "path": "/data/incomplete/Another.Movie.2024.1080p.WEB-DL-GRP",
+        "download_time": 289,
+        "postproc_time": 0,
+        "completed": 1752960090,
+        "time_added": 1752959700,
+        "retry": 0
+      }
+    ]
+  }
+}
