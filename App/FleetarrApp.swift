@@ -12,6 +12,9 @@ struct FleetarrApp: App {
         let container = Persistence.makeContainer(syncEnabled: syncEnabled)
         _container = State(initialValue: container)
         _store = State(initialValue: FleetStore(context: container.mainContext))
+
+        Analytics.start()
+        Analytics.appLaunched()
     }
 
     var body: some Scene {

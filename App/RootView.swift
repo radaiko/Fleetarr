@@ -6,16 +6,18 @@ import FleetarrKit
 /// instance management screens are built on top of `FleetarrKit`.
 struct RootView: View {
     var body: some View {
-        TabView {
-            NavigationStack {
-                FleetDashboardView()
-            }
-            .tabItem { Label("Fleet", systemImage: "square.grid.2x2") }
+        LockGate {
+            TabView {
+                NavigationStack {
+                    FleetDashboardView()
+                }
+                .tabItem { Label("Fleet", systemImage: "square.grid.2x2") }
 
-            NavigationStack {
-                SettingsView()
+                NavigationStack {
+                    SettingsView()
+                }
+                .tabItem { Label("Settings", systemImage: "gearshape") }
             }
-            .tabItem { Label("Settings", systemImage: "gearshape") }
         }
     }
 }

@@ -23,6 +23,9 @@ settings:
 packages:
   FleetarrKit:
     path: FleetarrKit
+  Aptabase:
+    url: https://github.com/aptabase/aptabase-swift.git
+    from: "0.3.11"
 
 targets:
   Fleetarr:
@@ -33,12 +36,15 @@ targets:
     dependencies:
       - package: FleetarrKit
         product: FleetarrKit
+      - package: Aptabase
+        product: Aptabase
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: net.radaiko.Fleetarr
         PRODUCT_NAME: Fleetarr
         INFOPLIST_KEY_CFBundleDisplayName: Fleetarr
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.utilities
+        INFOPLIST_KEY_NSFaceIDUsageDescription: Unlock Fleetarr with Face ID.
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UISupportedInterfaceOrientations: "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"

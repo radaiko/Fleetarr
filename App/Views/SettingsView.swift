@@ -8,6 +8,8 @@ struct SettingsView: View {
     @AppStorage("syncEnabled") private var syncEnabled = true
     @AppStorage("analyticsEnabled") private var analyticsEnabled = true
 
+    @AppStorage("appLockEnabled") private var appLockEnabled = false
+
     @State private var showingAdd = false
     @State private var editingInstance: FleetInstance?
 
@@ -42,6 +44,15 @@ struct SettingsView: View {
                 Text("Your instance list and dashboard layout sync across your devices via iCloud. "
                      + "API keys and tokens are end-to-end encrypted in iCloud Keychain. "
                      + "Changes to this setting take effect the next time you launch Fleetarr.")
+            }
+
+            Section {
+                Toggle("Require Face ID / passcode", isOn: $appLockEnabled)
+            } header: {
+                Text("Security")
+            } footer: {
+                Text("Locks Fleetarr when it moves to the background, since it can approve requests, "
+                     + "remove downloads, and stop streams. This setting stays on this device.")
             }
 
             Section {

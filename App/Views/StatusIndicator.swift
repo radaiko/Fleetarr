@@ -37,6 +37,19 @@ extension HealthState {
     }
 }
 
+extension ServiceType {
+    /// Whether the detail screen offers "remove from queue" swipe actions (spec §6.1, §6.4).
+    var supportsQueueRemoval: Bool { self == .sonarr || self == .radarr || self == .sabnzbd }
+    /// Whether a "blocklist & re-search" variant applies (Sonarr/Radarr only).
+    var supportsBlocklistRemoval: Bool { self == .sonarr || self == .radarr }
+    /// Whether queue-wide pause/resume applies (SABnzbd; spec §6.4).
+    var supportsDownloadControl: Bool { self == .sabnzbd }
+    /// Whether request approve/decline applies (Seerr; spec §6.3).
+    var supportsRequestApproval: Bool { self == .seerr }
+    /// Whether session termination applies (Plex/Jellyfin; spec §6.5, §6.6).
+    var supportsSessionTermination: Bool { self == .plex || self == .jellyfin }
+}
+
 /// A status glyph combining color + icon + (optional) text label (spec §9.6).
 struct StatusIndicator: View {
     let state: HealthState

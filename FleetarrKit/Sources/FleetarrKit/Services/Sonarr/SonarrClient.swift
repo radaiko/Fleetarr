@@ -45,7 +45,9 @@ public struct SonarrClient: FleetService {
         let queue = try await fetchQueue()
         return (queue.records ?? []).map { record in
             ActivityItem(
-                id: "queue:\(record.identifier)",
+                // The bare queue-record id is the DELETE target for removeQueueItem — do not prefix
+                // it (the "queue:" prefix belongs only on the Problem id). See spec §6.1.
+                id: record.identifier,
                 title: record.title ?? "Queue item",
                 subtitle: record.downloadClient,
                 progress: progress(size: record.size, sizeleft: record.sizeleft),
@@ -255,5 +257,23 @@ public struct SonarrClient: FleetService {
         }
         return unit == 0 ? String(format: "%.0f %@", value, units[unit])
                          : String(format: "%.1f %@", value, units[unit])
+    }
+}
+
+// MARK: - Write actions (spec §6.1)
+
+extension SonarrClient: QueueItemRemoving {
+    public func removeQueueItem(id: String, blocklist: Bool) async throws(FleetError) {
+        // blocklist=true blocklists the release and triggers an automatic re-search.
+        let request = try context.makeRequest(
+            path: "/api/v3/queue/\(id)",
+            method: "DELETE",
+            query: [
+                URLQueryItem(name: "removeFromClient", value: "true"),
+                URLQueryItem(name: "blocklist", value: blocklist ? "true" : "false"),
+            ],
+            headers: authHeaders
+        )
+        _ = try await context.send(request)
     }
 }

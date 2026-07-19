@@ -136,3 +136,18 @@ public struct JellyfinClient: FleetService {
         return min(max(Double(position) / Double(runtime), 0), 1)
     }
 }
+
+// MARK: - Write actions (spec §6.6)
+
+extension JellyfinClient: SessionTerminating {
+    public func terminateSession(id: String, reason: String?) async throws(FleetError) {
+        // The Stop playstate command has no "reason" parameter; `reason` is accepted only for
+        // protocol conformance with Plex.
+        let request = try context.makeRequest(
+            path: "/Sessions/\(id)/Playing/Stop",
+            method: "POST",
+            headers: authHeaders
+        )
+        _ = try await context.send(request)
+    }
+}

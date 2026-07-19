@@ -2,7 +2,8 @@ import SwiftUI
 import FleetarrKit
 
 /// Per-instance detail screen (spec §6, §8): current health, the problems list, the primary
-/// activity list (queue/sessions/requests), and a direct link to the service's own web UI.
+/// activity list (queue/sessions/requests) with write actions (Phase 2), and a direct link to the
+/// service's own web UI.
 struct InstanceDetailView: View {
     @Environment(FleetStore.self) private var store
     let instance: FleetInstance
@@ -10,6 +11,8 @@ struct InstanceDetailView: View {
     @State private var activity: [ActivityItem] = []
     @State private var isLoading = false
     @State private var loadError: FleetError?
+    @State private var pendingConfirmation: PendingAction?
+    @State private var actionError: String?
 
     private var status: InstanceStatus? { store.status(for: instance) }
     private var configured: Bool { store.hasStoredSecret(for: instance) }
@@ -50,7 +53,15 @@ struct InstanceDetailView: View {
                 } else if activity.isEmpty {
                     Text("Nothing active").foregroundStyle(.secondary)
                 } else {
-                    ForEach(activity) { ActivityRow(item: $0) }
+                    ForEach(activity) { item in
+                        ActivityRow(item: item)
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                trailingActions(for: item)
+                            }
+                            .swipeActions(edge: .leading) {
+                                leadingActions(for: item)
+                            }
+                    }
                 }
             }
 
@@ -66,9 +77,124 @@ struct InstanceDetailView: View {
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif
+        .toolbar {
+            if instance.serviceType.supportsDownloadControl {
+                ToolbarItem(placement: .primaryAction) {
+                    Menu {
+                        Button { run { await store.setQueuePaused(true, on: instance) } } label: {
+                            Label("Pause all downloads", systemImage: "pause.fill")
+                        }
+                        Button { run { await store.setQueuePaused(false, on: instance) } } label: {
+                            Label("Resume all downloads", systemImage: "play.fill")
+                        }
+                    } label: {
+                        Label("Queue controls", systemImage: "playpause")
+                    }
+                }
+            }
+        }
+        .confirmationDialog(
+            pendingConfirmation?.prompt ?? "",
+            isPresented: Binding(
+                get: { pendingConfirmation != nil },
+                set: { if !$0 { pendingConfirmation = nil } }
+            ),
+            titleVisibility: .visible,
+            presenting: pendingConfirmation
+        ) { action in
+            Button(action.confirmLabel, role: .destructive) {
+                run { await performConfirmed(action) }
+            }
+            Button("Cancel", role: .cancel) {}
+        }
+        .alert(
+            "Action failed",
+            isPresented: Binding(get: { actionError != nil }, set: { if !$0 { actionError = nil } })
+        ) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(actionError ?? "")
+        }
         .task { await load() }
         .refreshable {
             await store.refresh()
+            await load()
+        }
+    }
+
+    // MARK: Swipe actions
+
+    @ViewBuilder private func trailingActions(for item: ActivityItem) -> some View {
+        let type = instance.serviceType
+        if type.supportsQueueRemoval {
+            Button(role: .destructive) {
+                pendingConfirmation = .remove(item, blocklist: false)
+            } label: {
+                Label("Remove", systemImage: "trash")
+            }
+            if type.supportsBlocklistRemoval {
+                Button {
+                    pendingConfirmation = .remove(item, blocklist: true)
+                } label: {
+                    Label("Blocklist", systemImage: "hand.raised")
+                }
+                .tint(.orange)
+            }
+        }
+        if type.supportsSessionTermination {
+            Button(role: .destructive) {
+                pendingConfirmation = .stop(item)
+            } label: {
+                Label("Stop", systemImage: "stop.fill")
+            }
+        }
+        if type.supportsRequestApproval {
+            Button {
+                run { await store.declineRequest(item, on: instance) }
+            } label: {
+                Label("Decline", systemImage: "xmark")
+            }
+            .tint(.red)
+        }
+    }
+
+    @ViewBuilder private func leadingActions(for item: ActivityItem) -> some View {
+        let type = instance.serviceType
+        if type.supportsRequestApproval {
+            Button {
+                run { await store.approveRequest(item, on: instance) }
+            } label: {
+                Label("Approve", systemImage: "checkmark")
+            }
+            .tint(.green)
+        }
+        if type.supportsDownloadControl {
+            Button {
+                run { await store.setItemPaused(true, item, on: instance) }
+            } label: {
+                Label("Pause", systemImage: "pause")
+            }
+            .tint(.orange)
+        }
+    }
+
+    // MARK: Action plumbing
+
+    private func performConfirmed(_ action: PendingAction) async -> FleetError? {
+        switch action {
+        case let .remove(item, blocklist):
+            return await store.removeQueueItem(item, on: instance, blocklist: blocklist)
+        case let .stop(item):
+            return await store.terminateSession(item, on: instance)
+        }
+    }
+
+    /// Runs an action, surfaces any error, and reloads the activity list to reflect the new state.
+    private func run(_ action: @escaping () async -> FleetError?) {
+        Task {
+            if let error = await action() {
+                actionError = error.userMessage
+            }
             await load()
         }
     }
@@ -85,6 +211,36 @@ struct InstanceDetailView: View {
             activity = try await service.fetchActivity()
         } catch {
             loadError = error
+        }
+    }
+}
+
+private enum PendingAction: Identifiable {
+    case remove(ActivityItem, blocklist: Bool)
+    case stop(ActivityItem)
+
+    var id: String {
+        switch self {
+        case let .remove(item, blocklist): "remove-\(blocklist)-\(item.id)"
+        case let .stop(item): "stop-\(item.id)"
+        }
+    }
+
+    var prompt: String {
+        switch self {
+        case let .remove(item, blocklist):
+            blocklist
+                ? "Remove and blocklist “\(item.title)”? It will be blocked and searched again."
+                : "Remove “\(item.title)” from the queue?"
+        case let .stop(item):
+            "Stop the stream “\(item.title)”?"
+        }
+    }
+
+    var confirmLabel: String {
+        switch self {
+        case let .remove(_, blocklist): blocklist ? "Remove & Blocklist" : "Remove"
+        case .stop: "Stop Stream"
         }
     }
 }

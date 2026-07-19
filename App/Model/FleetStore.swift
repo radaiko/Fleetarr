@@ -83,6 +83,10 @@ final class FleetStore {
             statuses[id] = status
         }
         lastRefresh = .now
+
+        Analytics.dashboardRefreshed(instanceCount: dashboardInstances.count)
+        let badge = summary.problemBadgeCount
+        if badge > 0 { Analytics.problemBadgeShown(count: badge) }
     }
 
     /// Builds a live service client for an instance if a secret is stored — used by detail screens
@@ -97,11 +101,90 @@ final class FleetStore {
     // MARK: Test connection (spec §4)
 
     func testConnection(_ instance: FleetInstance, secret: String) async -> ConnectionTestResult {
+        let result: ConnectionTestResult
         do {
             let service = try factory.makeService(for: instance, credential: secret)
-            return await service.testConnection()
+            result = await service.testConnection()
         } catch {
-            return .failure(error)
+            result = .failure(error)
+        }
+        Analytics.connectionTested(instance.serviceType, success: result.isSuccess)
+        return result
+    }
+
+    // MARK: Write actions (spec §6, Phase 2)
+
+    /// Runs a write action against a freshly-built service, then refreshes the fleet so tiles and
+    /// the badge reflect the change. Returns the error to surface, or `nil` on success.
+    private func runAction(
+        on instance: FleetInstance,
+        event: Analytics.WriteAction,
+        _ body: (any FleetService) async throws -> Void
+    ) async -> FleetError? {
+        guard let service = service(for: instance) else { return .unauthorized }
+        do {
+            try await body(service)
+            await refresh()
+            Analytics.writeAction(event, instance.serviceType)
+            return nil
+        } catch let error as FleetError {
+            return error
+        } catch {
+            return .transport("The action failed")
+        }
+    }
+
+    func removeQueueItem(_ item: ActivityItem, on instance: FleetInstance, blocklist: Bool) async -> FleetError? {
+        await runAction(on: instance, event: .queueItemRemoved) { service in
+            guard let service = service as? QueueItemRemoving else {
+                throw FleetError.transport("Not supported by this service")
+            }
+            try await service.removeQueueItem(id: item.id, blocklist: blocklist)
+        }
+    }
+
+    func setQueuePaused(_ paused: Bool, on instance: FleetInstance) async -> FleetError? {
+        await runAction(on: instance, event: paused ? .downloadsPaused : .downloadsResumed) { service in
+            guard let service = service as? DownloadControlling else {
+                throw FleetError.transport("Not supported by this service")
+            }
+            try await service.setQueuePaused(paused)
+        }
+    }
+
+    func setItemPaused(_ paused: Bool, _ item: ActivityItem, on instance: FleetInstance) async -> FleetError? {
+        await runAction(on: instance, event: paused ? .downloadsPaused : .downloadsResumed) { service in
+            guard let service = service as? DownloadControlling else {
+                throw FleetError.transport("Not supported by this service")
+            }
+            try await service.setItemPaused(paused, id: item.id)
+        }
+    }
+
+    func approveRequest(_ item: ActivityItem, on instance: FleetInstance) async -> FleetError? {
+        await runAction(on: instance, event: .requestApproved) { service in
+            guard let service = service as? RequestApproving else {
+                throw FleetError.transport("Not supported by this service")
+            }
+            try await service.approveRequest(id: item.id)
+        }
+    }
+
+    func declineRequest(_ item: ActivityItem, on instance: FleetInstance) async -> FleetError? {
+        await runAction(on: instance, event: .requestDeclined) { service in
+            guard let service = service as? RequestApproving else {
+                throw FleetError.transport("Not supported by this service")
+            }
+            try await service.declineRequest(id: item.id)
+        }
+    }
+
+    func terminateSession(_ item: ActivityItem, on instance: FleetInstance) async -> FleetError? {
+        await runAction(on: instance, event: .sessionTerminated) { service in
+            guard let service = service as? SessionTerminating else {
+                throw FleetError.transport("Not supported by this service")
+            }
+            try await service.terminateSession(id: item.id, reason: "Stopped from Fleetarr")
         }
     }
 
@@ -121,6 +204,7 @@ final class FleetStore {
                 toInsert.sortOrder = (instances.map(\.sortOrder).max() ?? 0) + 1
             }
             context.insert(InstanceRecord.from(toInsert))
+            Analytics.instanceAdded(instance.serviceType)
         }
         try? context.save()
 
@@ -139,6 +223,7 @@ final class FleetStore {
         try? context.save()
         try? keychain.delete(for: id)
         statuses[id] = nil
+        Analytics.instanceRemoved(instance.serviceType)
         reload()
     }
 

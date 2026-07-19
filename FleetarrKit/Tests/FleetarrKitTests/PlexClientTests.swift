@@ -86,7 +86,8 @@ struct PlexClientTests {
         #expect(items.count == 2)
 
         let transcoding = try #require(items.first)
-        #expect(transcoding.id == "182")
+        // id is Session.id (the terminate target), not sessionKey (spec §6.5).
+        #expect(transcoding.id == "hg4kd8s9f0plexsess1")
         #expect(transcoding.title == "Game of Thrones - The Rains of Castamere")
         #expect(transcoding.subtitle == "radaiko")
         #expect(transcoding.status == "Transcode")

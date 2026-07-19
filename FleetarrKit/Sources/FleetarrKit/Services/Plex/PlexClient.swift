@@ -99,7 +99,8 @@ public struct PlexClient: FleetService {
         }
 
         return ActivityItem(
-            id: session.sessionKey ?? session.ratingKey ?? UUID().uuidString,
+            // Use Session.id — that (not sessionKey/ratingKey) is the terminate target (spec §6.5).
+            id: session.session?.id ?? session.sessionKey ?? session.ratingKey ?? UUID().uuidString,
             title: displayTitle(for: session),
             subtitle: nonEmpty(session.user?.title),
             progress: progress(for: session),
@@ -175,5 +176,22 @@ public struct PlexClient: FleetService {
             return String(format: "%.1f Mbps", Double(kbps) / 1000)
         }
         return "\(kbps) kbps"
+    }
+}
+
+// MARK: - Write actions (spec §6.5)
+
+extension PlexClient: SessionTerminating {
+    public func terminateSession(id: String, reason: String?) async throws(FleetError) {
+        // NOTE: `sessionId` must be Session.id (capital I in the param name; lowercase → HTTP 400).
+        let request = try context.makeRequest(
+            path: "/status/sessions/terminate",
+            query: [
+                URLQueryItem(name: "sessionId", value: id),
+                URLQueryItem(name: "reason", value: reason ?? "Stopped from Fleetarr"),
+            ],
+            headers: authHeaders
+        )
+        _ = try await context.send(request)
     }
 }

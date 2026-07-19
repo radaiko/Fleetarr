@@ -184,3 +184,24 @@ public struct SeerrClient: FleetService {
         return raw
     }
 }
+
+// MARK: - Write actions (spec §6.3)
+
+extension SeerrClient: RequestApproving {
+    public func approveRequest(id: String) async throws(FleetError) {
+        try await postRequestAction(id: id, action: "approve")
+    }
+
+    public func declineRequest(id: String) async throws(FleetError) {
+        try await postRequestAction(id: id, action: "decline")
+    }
+
+    private func postRequestAction(id: String, action: String) async throws(FleetError) {
+        let request = try context.makeRequest(
+            path: Self.apiRoot + "/request/\(id)/\(action)",
+            method: "POST",
+            headers: authHeaders
+        )
+        _ = try await context.send(request)
+    }
+}

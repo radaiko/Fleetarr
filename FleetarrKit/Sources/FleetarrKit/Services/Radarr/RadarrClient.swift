@@ -240,3 +240,21 @@ public struct RadarrClient: FleetService {
         return min(max(done, 0), 1)
     }
 }
+
+// MARK: - Write actions (spec §6.1)
+
+extension RadarrClient: QueueItemRemoving {
+    public func removeQueueItem(id: String, blocklist: Bool) async throws(FleetError) {
+        // blocklist=true blocklists the release and triggers an automatic re-search.
+        let request = try context.makeRequest(
+            path: "/api/v3/queue/\(id)",
+            method: "DELETE",
+            query: [
+                URLQueryItem(name: "removeFromClient", value: "true"),
+                URLQueryItem(name: "blocklist", value: blocklist ? "true" : "false"),
+            ],
+            headers: authHeaders
+        )
+        _ = try await context.send(request)
+    }
+}

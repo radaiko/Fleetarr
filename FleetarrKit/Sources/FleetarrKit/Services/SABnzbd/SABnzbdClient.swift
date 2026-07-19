@@ -202,3 +202,40 @@ public struct SABnzbdClient: FleetService {
         return String(format: "%.0f GB", gigabytes)
     }
 }
+
+// MARK: - Write actions (spec §6.4)
+
+extension SABnzbdClient: QueueItemRemoving, DownloadControlling {
+    public func removeQueueItem(id: String, blocklist: Bool) async throws(FleetError) {
+        // SABnzbd has no per-item blocklist, so `blocklist` is ignored. `del_files=1` also removes
+        // the partial download from disk.
+        try await performCommand(query(mode: "queue", extra: [
+            URLQueryItem(name: "name", value: "delete"),
+            URLQueryItem(name: "value", value: id),
+            URLQueryItem(name: "del_files", value: "1"),
+        ]))
+    }
+
+    public func setQueuePaused(_ paused: Bool) async throws(FleetError) {
+        try await performCommand(query(mode: paused ? "pause" : "resume"))
+    }
+
+    public func setItemPaused(_ paused: Bool, id: String) async throws(FleetError) {
+        try await performCommand(query(mode: "queue", extra: [
+            URLQueryItem(name: "name", value: paused ? "pause" : "resume"),
+            URLQueryItem(name: "value", value: id),
+        ]))
+    }
+
+    public func retryFailedItem(id: String) async throws(FleetError) {
+        try await performCommand(query(mode: "retry", extra: [
+            URLQueryItem(name: "value", value: id),
+        ]))
+    }
+
+    private func performCommand(_ items: [URLQueryItem]) async throws(FleetError) {
+        let request = try context.makeRequest(path: "/api", query: items)
+        let response = try await context.send(request)
+        try Self.checkForSABError(response.data)
+    }
+}
