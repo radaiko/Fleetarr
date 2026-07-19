@@ -3,6 +3,9 @@ import Observation
 import SwiftData
 import WidgetKit
 import FleetarrKit
+#if canImport(AppKit)
+import AppKit
+#endif
 
 /// The app's observable state hub: owns the instance list (from SwiftData), runs concurrent
 /// refreshes via `FleetRefresher`, and exposes per-instance status + the fleet summary to the UI.
@@ -105,6 +108,16 @@ final class FleetStore {
         if badge > 0 { Analytics.problemBadgeShown(count: badge) }
 
         writeSnapshot()
+        updateAppBadge()
+    }
+
+    /// Reflects the combined problem count on the macOS Dock icon (spec §5). On iOS the app-icon
+    /// badge needs notification authorization, so it's left to a later notifications pass.
+    private func updateAppBadge() {
+        #if os(macOS)
+        let count = summary.problemBadgeCount
+        NSApplication.shared.dockTile.badgeLabel = count > 0 ? "\(count)" : nil
+        #endif
     }
 
     /// Publishes a snapshot to the shared App Group and reloads widget timelines (spec §9.7).
