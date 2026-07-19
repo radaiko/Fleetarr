@@ -19,6 +19,12 @@ settings:
     # App views/persistence start in Swift 5 mode with progressive concurrency checking;
     # FleetarrKit is built in full Swift 6 mode (see its Package.swift).
     SWIFT_STRICT_CONCURRENCY: minimal
+    # Sign locally with the Apple Development identity so the app has a stable, cert-based code
+    # signature — the login keychain persists "Always Allow" against it (an ad-hoc cdhash identity
+    # changes every build and is never remembered). CI/verification builds pass
+    # CODE_SIGNING_ALLOWED=NO to skip signing entirely; a plain build signs automatically.
+    DEVELOPMENT_TEAM: "555V4MNLK3"
+    CODE_SIGN_STYLE: Automatic
 
 packages:
   FleetarrKit:
