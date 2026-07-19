@@ -57,6 +57,9 @@ targets:
         INFOPLIST_KEY_UISupportedInterfaceOrientations: "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
         ENABLE_HARDENED_RUNTIME: YES
+        # iOS-only for now: iCloud on the Mac additionally needs the Mac registered as a device in
+        # the developer account (a one-time Xcode step). Scoping to iphoneos keeps macOS CLI-signable.
+        CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*]: App/Fleetarr.entitlements
 
   FleetarrWidget:
     type: app-extension
@@ -79,3 +82,4 @@ targets:
         PRODUCT_NAME: FleetarrWidget
         PRODUCT_MODULE_NAME: FleetarrWidgetExtension
         SKIP_INSTALL: YES
+        CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*]: App/FleetarrWidget.entitlements

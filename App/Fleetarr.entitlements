@@ -1,12 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
-  Reference entitlements for Fleetarr (spec §3.3, §3.5, §7).
-
-  These are NOT wired into the build target yet, because CloudKit/Keychain entitlements require a
-  provisioning profile from an Apple Developer team. To enable iCloud sync, add
-  CODE_SIGN_ENTITLEMENTS = App/Fleetarr.entitlements to the target in project.yml, open the project
-  in Xcode with your team selected, and turn on the matching capabilities.
+  Active entitlements for iCloud sync (spec §3.3, §3.5) + the widget App Group (§9.7).
+  Wired into the app target via CODE_SIGN_ENTITLEMENTS. Push (aps-environment) is intentionally
+  omitted for now — CloudKit still syncs on foreground/launch; add Push + Background Modes later
+  for background sync.
 -->
 <plist version="1.0">
 <dict>
@@ -22,14 +20,9 @@
     <array>
         <string>$(AppIdentifierPrefix)net.radaiko.Fleetarr</string>
     </array>
-    <!-- Shared with the widget extension so it can read the published fleet snapshot (spec §9.7).
-         The widget target needs a matching application-groups entitlement. -->
     <key>com.apple.security.application-groups</key>
     <array>
         <string>group.net.radaiko.Fleetarr</string>
     </array>
-    <!-- Phase 2/3: APNs for push notifications (spec §7). -->
-    <key>aps-environment</key>
-    <string>development</string>
 </dict>
 </plist>
