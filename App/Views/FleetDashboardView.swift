@@ -8,6 +8,7 @@ struct FleetDashboardView: View {
     @Environment(FleetStore.self) private var store
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage("refreshIntervalSeconds") private var refreshInterval: Double = 60
+    @State private var showingSettings = false
 
     private let columns = [GridItem(.adaptive(minimum: 285, maximum: 440), spacing: 12)]
 
@@ -46,6 +47,16 @@ struct FleetDashboardView: View {
                 }
                 .disabled(store.isRefreshing)
             }
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    showingSettings = true
+                } label: {
+                    Label("Settings", systemImage: "gearshape")
+                }
+            }
+        }
+        .navigationDestination(isPresented: $showingSettings) {
+            SettingsView()
         }
         .refreshable { await store.refresh() }
         // Auto-refresh; restarts on scene-phase change and only runs while active (pauses in the
