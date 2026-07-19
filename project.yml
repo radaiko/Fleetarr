@@ -38,6 +38,7 @@ targets:
         product: FleetarrKit
       - package: Aptabase
         product: Aptabase
+      - target: FleetarrWidget
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: net.radaiko.Fleetarr
@@ -50,3 +51,25 @@ targets:
         INFOPLIST_KEY_UISupportedInterfaceOrientations: "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
         ENABLE_HARDENED_RUNTIME: YES
+
+  FleetarrWidget:
+    type: app-extension
+    supportedDestinations: [iOS, macOS]
+    sources:
+      - path: Widget
+    dependencies:
+      - package: FleetarrKit
+        product: FleetarrKit
+    info:
+      path: Widget/Info.plist
+      properties:
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+        CFBundleDisplayName: Fleetarr
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: NO
+        PRODUCT_BUNDLE_IDENTIFIER: net.radaiko.Fleetarr.Widget
+        PRODUCT_NAME: FleetarrWidget
+        PRODUCT_MODULE_NAME: FleetarrWidgetExtension
+        SKIP_INSTALL: YES

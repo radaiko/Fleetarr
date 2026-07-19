@@ -1,6 +1,7 @@
 import Foundation
 import Observation
 import SwiftData
+import WidgetKit
 import FleetarrKit
 
 /// The app's observable state hub: owns the instance list (from SwiftData), runs concurrent
@@ -87,6 +88,32 @@ final class FleetStore {
         Analytics.dashboardRefreshed(instanceCount: dashboardInstances.count)
         let badge = summary.problemBadgeCount
         if badge > 0 { Analytics.problemBadgeShown(count: badge) }
+
+        writeSnapshot()
+    }
+
+    /// Publishes a snapshot to the shared App Group and reloads widget timelines (spec §9.7).
+    private func writeSnapshot() {
+        let snapshot = FleetSnapshot(
+            problemBadgeCount: summary.problemBadgeCount,
+            worstHealth: summary.worstHealth,
+            unreachableCount: summary.unreachableCount,
+            instances: dashboardInstances.map { instance in
+                let health = hasStoredSecret(for: instance)
+                    ? (status(for: instance)?.health ?? .unknown)
+                    : .unknown
+                return InstanceSnapshot(
+                    id: instance.id,
+                    label: instance.label,
+                    serviceType: instance.serviceType,
+                    health: health,
+                    summaryLine: status(for: instance)?.summaryLine
+                )
+            },
+            updatedAt: .now
+        )
+        SharedSnapshotStore.write(snapshot)
+        WidgetCenter.shared.reloadAllTimelines()
     }
 
     /// Builds a live service client for an instance if a secret is stored — used by detail screens

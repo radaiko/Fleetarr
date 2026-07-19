@@ -1,5 +1,6 @@
 # Xcode / xcodegen
 Fleetarr.xcodeproj/
+Widget/Info.plist
 *.xcworkspace/
 xcuserdata/
 *.xcuserstate
