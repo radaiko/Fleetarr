@@ -47,7 +47,15 @@ enum Persistence {
     /// Whether the running app was signed with the given entitlement. Used to gate CloudKit so a
     /// dev build without the capability doesn't trap in CloudKit mirroring.
     private static func hasEntitlement(_ key: String) -> Bool {
+        #if os(macOS)
+        // The unsigned/ad-hoc dev-build crash this guards against is macOS-specific. `SecTask`
+        // self-inspection is available there.
         guard let task = SecTaskCreateFromSelf(nil) else { return false }
         return SecTaskCopyValueForEntitlement(task, key as CFString, nil) != nil
+        #else
+        // On iOS the app always runs with its provisioned entitlements (the SecTask self-inspection
+        // APIs aren't available), so assume present and let the iCloud-account check gate sync.
+        return true
+        #endif
     }
 }
