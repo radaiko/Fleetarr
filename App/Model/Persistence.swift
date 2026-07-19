@@ -6,7 +6,7 @@ import Security
 /// and always degrading to a working local store so the app never dead-launches (spec §3.5).
 enum Persistence {
     /// Must match the iCloud container in `App/Fleetarr.entitlements`.
-    static let cloudKitContainerID = "iCloud.net.radaiko.Fleetarr"
+    static let cloudKitContainerID = "iCloud.dev.radaiko.Fleetarr"
 
     /// - Parameter syncEnabled: the user's persisted preference (read from `UserDefaults`, since we
     ///   must know it *before* opening the store). Sync also requires a usable iCloud account.

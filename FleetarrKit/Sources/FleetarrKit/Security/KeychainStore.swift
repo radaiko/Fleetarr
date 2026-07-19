@@ -21,7 +21,7 @@ public struct KeychainStore: Sendable {
     public let accessGroup: String?
 
     public init(
-        service: String = "net.radaiko.Fleetarr.credentials",
+        service: String = "dev.radaiko.Fleetarr.credentials",
         synchronizable: Bool = true,
         accessGroup: String? = nil
     ) {

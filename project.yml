@@ -1,7 +1,7 @@
 name: Fleetarr
 
 options:
-  bundleIdPrefix: net.radaiko
+  bundleIdPrefix: dev.radaiko
   deploymentTarget:
     iOS: "17.0"
     macOS: "14.0"
@@ -47,7 +47,7 @@ targets:
       - target: FleetarrWidget
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: net.radaiko.Fleetarr
+        PRODUCT_BUNDLE_IDENTIFIER: dev.radaiko.Fleetarr
         PRODUCT_NAME: Fleetarr
         INFOPLIST_KEY_CFBundleDisplayName: Fleetarr
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.utilities
@@ -57,9 +57,11 @@ targets:
         INFOPLIST_KEY_UISupportedInterfaceOrientations: "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
         ENABLE_HARDENED_RUNTIME: YES
-        # iOS-only for now: iCloud on the Mac additionally needs the Mac registered as a device in
-        # the developer account (a one-time Xcode step). Scoping to iphoneos keeps macOS CLI-signable.
-        CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*]: App/Fleetarr.entitlements
+        # iCloud on both platforms. macOS additionally requires this Mac to be registered in the
+        # developer account — do that once by opening the project in Xcode and running for "My Mac"
+        # (Xcode registers the Mac + provisions the profile). Until then, CLI macOS *signed* builds
+        # fail; CODE_SIGNING_ALLOWED=NO verification builds still work.
+        CODE_SIGN_ENTITLEMENTS: App/Fleetarr.entitlements
 
   FleetarrWidget:
     type: app-extension
@@ -78,8 +80,8 @@ targets:
     settings:
       base:
         GENERATE_INFOPLIST_FILE: NO
-        PRODUCT_BUNDLE_IDENTIFIER: net.radaiko.Fleetarr.Widget
+        PRODUCT_BUNDLE_IDENTIFIER: dev.radaiko.Fleetarr.Widget
         PRODUCT_NAME: FleetarrWidget
         PRODUCT_MODULE_NAME: FleetarrWidgetExtension
         SKIP_INSTALL: YES
-        CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*]: App/FleetarrWidget.entitlements
+        CODE_SIGN_ENTITLEMENTS: App/FleetarrWidget.entitlements

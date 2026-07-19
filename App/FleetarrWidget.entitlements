@@ -5,7 +5,7 @@
 <dict>
     <key>com.apple.security.application-groups</key>
     <array>
-        <string>group.net.radaiko.Fleetarr</string>
+        <string>group.dev.radaiko.Fleetarr</string>
     </array>
 </dict>
 </plist>
