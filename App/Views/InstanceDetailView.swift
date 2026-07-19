@@ -156,6 +156,11 @@ struct InstanceDetailView: View {
                     await activityResult { try await listing.fetchRecentlyAdded() }
                 }
             }
+            if let listing = service as? ApplicationSyncListing {
+                LazyActivityDisclosure(title: "Applications", systemImage: "arrow.left.arrow.right") {
+                    await activityResult { try await listing.fetchApplications() }
+                }
+            }
         }
     }
 

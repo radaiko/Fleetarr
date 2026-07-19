@@ -79,3 +79,13 @@ struct ProwlarrIndexerStatus: Decodable {
         return present(disabledTill) || present(mostRecentFailure) || present(initialFailure)
     }
 }
+
+/// A configured downstream application Prowlarr syncs indexers to (Sonarr/Radarr/…), from
+/// `GET /api/v1/applications` (spec §6.2).
+struct ProwlarrApplication: Decodable {
+    let id: Int?
+    let name: String?
+    /// "disabled" | "addOnly" | "fullSync" — how Prowlarr pushes indexer changes to this app.
+    let syncLevel: String?
+    let implementationName: String?
+}

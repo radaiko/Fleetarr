@@ -21,6 +21,24 @@ struct ProwlarrClientTests {
         }
     }
 
+    @Test("fetchApplications maps configured apps and flags a disabled sync level (spec §6.2)")
+    func fetchApplicationsMapsApps() async throws {
+        let json = Data(#"[{"id":1,"name":"Sonarr (TV)","syncLevel":"fullSync","implementationName":"Sonarr"},{"id":2,"name":"Radarr","syncLevel":"disabled","implementationName":"Radarr"}]"#.utf8)
+        let client = ProwlarrClient(context: Fixture.context(
+            transport: MockTransport { _ in .response(status: 200, data: json) }
+        ))
+
+        let items = try await client.fetchApplications()
+
+        #expect(items.count == 2)
+        #expect(items[0].title == "Sonarr (TV)")
+        #expect(items[0].status == "Full sync")
+        #expect(items[0].severity == nil)
+        #expect(items[1].title == "Radarr")
+        #expect(items[1].status == "Sync off")
+        #expect(items[1].severity == .warning)
+    }
+
     @Test("fetchStatus counts failing indexers and surfaces each with its error, plus health items")
     func fetchStatusBuildsProblems() async throws {
         let indexers = try Fixture.data("prowlarr_indexer")

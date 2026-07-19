@@ -24,3 +24,10 @@ public protocol MissingListing: FleetService {
 public protocol RecentlyAddedListing: FleetService {
     func fetchRecentlyAdded() async throws(FleetError) -> [ActivityItem]
 }
+
+/// Prowlarr's configured downstream applications (Sonarr/Radarr/…) and their indexer-sync level, so
+/// the detail screen can show what Prowlarr syncs to (spec §6.2). Sync *failures* additionally
+/// surface as health-check problems on the tile; this is the "what's configured" companion view.
+public protocol ApplicationSyncListing: FleetService {
+    func fetchApplications() async throws(FleetError) -> [ActivityItem]
+}

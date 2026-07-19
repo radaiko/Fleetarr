@@ -298,3 +298,36 @@ public struct ProwlarrClient: FleetService {
         )
     }
 }
+
+// MARK: - Application sync (spec §6.2)
+
+extension ProwlarrClient: ApplicationSyncListing {
+    /// The configured downstream apps and their indexer-sync level, for the detail "Applications"
+    /// section. A `disabled` sync level is flagged `.warning` (indexers won't propagate to that app).
+    public func fetchApplications() async throws(FleetError) -> [ActivityItem] {
+        let apps = try await context.fetchJSON(
+            [ProwlarrApplication].self,
+            path: "/api/v1/applications",
+            headers: authHeaders
+        )
+        return apps.map { app in
+            let disabled = (app.syncLevel ?? "").lowercased() == "disabled"
+            return ActivityItem(
+                id: "app:\(app.id.map(String.init) ?? app.name ?? UUID().uuidString)",
+                title: app.name ?? app.implementationName ?? "Application",
+                subtitle: app.implementationName,
+                status: Self.syncLevelText(app.syncLevel),
+                severity: disabled ? .warning : nil
+            )
+        }
+    }
+
+    static func syncLevelText(_ level: String?) -> String {
+        switch (level ?? "").lowercased() {
+        case "fullsync": return "Full sync"
+        case "addonly": return "Add only"
+        case "disabled": return "Sync off"
+        default: return level ?? "—"
+        }
+    }
+}
