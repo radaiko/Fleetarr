@@ -190,16 +190,22 @@ struct InstanceEditView: View {
         hasStoredSecret = store.hasStoredSecret(for: instance)
     }
 
+    /// Credentials pasted from a web dashboard often carry a trailing newline/space, which servers
+    /// reject with a 401 — trim it so the same key that works in curl works here too.
+    private var trimmedSecret: String {
+        secret.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     private func runTest() async {
         guard let instance = draft else { return }
         testing = true
         defer { testing = false }
-        testResult = await store.testConnection(instance, secret: secret)
+        testResult = await store.testConnection(instance, secret: trimmedSecret)
     }
 
     private func save() {
         guard let instance = draft else { return }
-        store.save(instance, secret: secret.isEmpty ? nil : secret)
+        store.save(instance, secret: trimmedSecret.isEmpty ? nil : trimmedSecret)
         dismiss()
     }
 

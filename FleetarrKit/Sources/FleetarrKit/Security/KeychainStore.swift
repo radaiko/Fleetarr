@@ -49,9 +49,25 @@ public struct KeychainStore: Sendable {
     public func save(_ secret: String, account: String) throws {
         guard let data = secret.data(using: .utf8) else { throw KeychainError.encodingFailed }
 
-        // Try to update an existing item first, then add if missing.
+        do {
+            try write(data, account: account, synchronizable: synchronizable)
+        } catch {
+            // A synchronizable (iCloud Keychain) item requires the iCloud/Keychain-Sharing
+            // entitlement, which unsigned / development builds don't have. Fall back to a local,
+            // non-synced item so the app still works. Signed builds succeed on the first attempt
+            // and get real iCloud Keychain sync.
+            if synchronizable {
+                try write(data, account: account, synchronizable: false)
+            } else {
+                throw error
+            }
+        }
+    }
+
+    private func write(_ data: Data, account: String, synchronizable: Bool) throws {
+        var query = baseQuery(account: account, synchronizable: synchronizable)
         let updateStatus = SecItemUpdate(
-            baseQuery(account: account) as CFDictionary,
+            query as CFDictionary,
             [kSecValueData as String: data] as CFDictionary
         )
         if updateStatus == errSecSuccess { return }
@@ -59,16 +75,16 @@ public struct KeychainStore: Sendable {
             throw KeychainError.unexpectedStatus(updateStatus)
         }
 
-        var addQuery = baseQuery(account: account)
-        addQuery[kSecValueData as String] = data
-        // Must be a syncable accessibility class for iCloud Keychain (not a ...ThisDeviceOnly one).
-        addQuery[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
-        let addStatus = SecItemAdd(addQuery as CFDictionary, nil)
+        query[kSecValueData as String] = data
+        // A syncable accessibility class (not a ...ThisDeviceOnly one) for iCloud Keychain.
+        query[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
+        let addStatus = SecItemAdd(query as CFDictionary, nil)
         guard addStatus == errSecSuccess else { throw KeychainError.unexpectedStatus(addStatus) }
     }
 
     public func readSecret(account: String) throws -> String? {
-        var query = baseQuery(account: account)
+        // Match both synced and local items so a dev-build fallback item is still found.
+        var query = baseQuery(account: account, synchronizable: nil)
         query[kSecReturnData as String] = kCFBooleanTrue
         query[kSecMatchLimit as String] = kSecMatchLimitOne
 
@@ -81,7 +97,7 @@ public struct KeychainStore: Sendable {
     }
 
     public func delete(account: String) throws {
-        let status = SecItemDelete(baseQuery(account: account) as CFDictionary)
+        let status = SecItemDelete(baseQuery(account: account, synchronizable: nil) as CFDictionary)
         guard status == errSecSuccess || status == errSecItemNotFound else {
             throw KeychainError.unexpectedStatus(status)
         }
@@ -89,13 +105,19 @@ public struct KeychainStore: Sendable {
 
     // MARK: Query building
 
-    private func baseQuery(account: String) -> [String: Any] {
+    /// - Parameter synchronizable: `true`/`false` to target that sync state, or `nil` to match any
+    ///   (used for reads/deletes so both synced and local items are found).
+    private func baseQuery(account: String, synchronizable: Bool?) -> [String: Any] {
         var query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,
-            kSecAttrSynchronizable as String: synchronizable ? kCFBooleanTrue as Any : kCFBooleanFalse as Any,
         ]
+        if let synchronizable {
+            query[kSecAttrSynchronizable as String] = synchronizable ? kCFBooleanTrue as Any : kCFBooleanFalse as Any
+        } else {
+            query[kSecAttrSynchronizable as String] = kSecAttrSynchronizableAny
+        }
         if let accessGroup {
             query[kSecAttrAccessGroup as String] = accessGroup
         }
