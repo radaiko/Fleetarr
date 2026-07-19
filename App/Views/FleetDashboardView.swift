@@ -1,33 +1,39 @@
 import SwiftUI
 import FleetarrKit
 
-/// The Fleet home screen (spec §5): a combined problem summary, one tile per enabled instance with
-/// a color+icon+text status glyph and headline metrics, pull-to-refresh, and auto-refresh that
-/// pauses when the app is backgrounded.
+/// The Fleet home screen (spec §5): a slim health header (the thesis — "is everything OK?") over a
+/// responsive grid of compact instance cards, ordered so anything needing attention floats to the
+/// top. Pull-to-refresh, plus auto-refresh that pauses when backgrounded.
 struct FleetDashboardView: View {
     @Environment(FleetStore.self) private var store
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage("refreshIntervalSeconds") private var refreshInterval: Double = 60
 
+    private let columns = [GridItem(.adaptive(minimum: 285, maximum: 440), spacing: 12)]
+
     var body: some View {
-        List {
+        ScrollView {
             if store.dashboardInstances.isEmpty {
                 emptyState
             } else {
-                summarySection
-                ForEach(store.dashboardInstances) { instance in
-                    Section {
-                        NavigationLink {
-                            InstanceDetailView(instance: instance)
-                        } label: {
-                            InstanceTileView(
-                                instance: instance,
-                                status: store.status(for: instance),
-                                hasSecret: store.hasStoredSecret(for: instance)
-                            )
+                VStack(alignment: .leading, spacing: 18) {
+                    summaryHeader
+                    LazyVGrid(columns: columns, spacing: 12) {
+                        ForEach(sortedInstances) { instance in
+                            NavigationLink {
+                                InstanceDetailView(instance: instance)
+                            } label: {
+                                InstanceCardView(
+                                    instance: instance,
+                                    status: store.status(for: instance),
+                                    configured: store.hasStoredSecret(for: instance)
+                                )
+                            }
+                            .buttonStyle(.plain)
                         }
                     }
                 }
+                .padding(18)
             }
         }
         .navigationTitle("Fleet")
@@ -42,8 +48,8 @@ struct FleetDashboardView: View {
             }
         }
         .refreshable { await store.refresh() }
-        // Auto-refresh loop; restarts when the scene phase changes and only runs while active,
-        // so it pauses when backgrounded (spec §5).
+        // Auto-refresh; restarts on scene-phase change and only runs while active (pauses in the
+        // background, spec §5).
         .task(id: scenePhase) {
             guard scenePhase == .active else { return }
             while !Task.isCancelled {
@@ -53,35 +59,56 @@ struct FleetDashboardView: View {
         }
     }
 
-    private var summarySection: some View {
+    // MARK: Header (the thesis)
+
+    private var summaryHeader: some View {
         let summary = store.summary
-        return Section {
-            HStack(spacing: 12) {
-                Image(systemName: summary.problemBadgeCount == 0 ? "checkmark.seal.fill" : "exclamationmark.triangle.fill")
-                    .imageScale(.large)
-                    .foregroundStyle(summary.problemBadgeCount == 0 ? .green : summary.worstHealth.tint)
-                VStack(alignment: .leading) {
-                    Text(summary.problemBadgeCount == 0
-                         ? "All clear"
-                         : "^[\(summary.problemBadgeCount) problem](inflect: true) across the fleet")
-                        .font(.headline)
-                    if summary.unreachableCount > 0 {
-                        Text("^[\(summary.unreachableCount) instance](inflect: true) unreachable")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    } else if let last = store.lastRefresh {
-                        Text("Updated \(last.formatted(.relative(presentation: .named)))")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                Spacer()
-                if store.isRefreshing {
-                    ProgressView()
+        let clear = summary.problemBadgeCount == 0
+        return HStack(alignment: .center, spacing: 10) {
+            Circle()
+                .fill(clear ? Color.green : summary.worstHealth.tint)
+                .frame(width: 9, height: 9)
+            Text(clear ? "All clear" : "^[\(summary.problemBadgeCount) problem](inflect: true)")
+                .font(.title2.weight(.semibold))
+            if summary.unreachableCount > 0 {
+                Text("· ^[\(summary.unreachableCount) unreachable](inflect: true)")
+                    .font(.subheadline)
+                    .foregroundStyle(.orange)
+            }
+            Spacer()
+            VStack(alignment: .trailing, spacing: 1) {
+                Text("^[\(store.dashboardInstances.count) service](inflect: true)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                if let last = store.lastRefresh {
+                    Text("updated \(last.formatted(.relative(presentation: .named)))")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
                 }
             }
-            .accessibilityElement(children: .combine)
+            if store.isRefreshing {
+                ProgressView().controlSize(.small)
+            }
         }
+        .accessibilityElement(children: .combine)
+    }
+
+    // MARK: Ordering — attention first
+
+    private var sortedInstances: [FleetInstance] {
+        store.dashboardInstances.sorted { lhs, rhs in
+            let a = attentionScore(lhs), b = attentionScore(rhs)
+            if a != b { return a > b }
+            return lhs.sortOrder < rhs.sortOrder
+        }
+    }
+
+    private func attentionScore(_ instance: FleetInstance) -> Int {
+        let configured = store.hasStoredSecret(for: instance)
+        let health = configured ? (store.status(for: instance)?.health ?? .unknown) : .unknown
+        let badge = store.status(for: instance)?.badgeCount ?? 0
+        // Higher = more attention. Warning/error/unreachable outrank healthy; badge count breaks ties.
+        return health.severityRank * 1000 + badge
     }
 
     private var emptyState: some View {
@@ -90,5 +117,6 @@ struct FleetDashboardView: View {
         } description: {
             Text("Add your Sonarr, Radarr, SABnzbd, Plex and other instances in Settings to see them here.")
         }
+        .padding(.top, 60)
     }
 }
