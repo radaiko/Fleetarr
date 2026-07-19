@@ -44,6 +44,21 @@ public struct KeychainStore: Sendable {
         try delete(account: id.uuidString)
     }
 
+    /// Whether a secret exists for this instance, WITHOUT decrypting it. An attributes-only query
+    /// doesn't touch the confidential data, so it never triggers the macOS keychain-access prompt —
+    /// unlike ``readSecret(for:)``. Use this for UI "configured?" checks.
+    public func exists(for id: UUID) -> Bool {
+        exists(account: id.uuidString)
+    }
+
+    public func exists(account: String) -> Bool {
+        var query = baseQuery(account: account, synchronizable: nil)
+        query[kSecMatchLimit as String] = kSecMatchLimitOne
+        query[kSecReturnAttributes as String] = kCFBooleanTrue // attributes only — no data, no prompt
+        var result: CFTypeRef?
+        return SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess
+    }
+
     // MARK: Account-keyed operations
 
     public func save(_ secret: String, account: String) throws {

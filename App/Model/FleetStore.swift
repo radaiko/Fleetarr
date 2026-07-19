@@ -23,6 +23,11 @@ final class FleetStore {
     private(set) var isRefreshing = false
     private(set) var lastRefresh: Date?
 
+    /// In-memory cache of decrypted secrets so the Keychain data is read at most once per instance
+    /// per session — otherwise every refresh/reload re-triggers the macOS keychain-access prompt on
+    /// ad-hoc/unsigned builds. `.some(nil)` means "checked, none stored".
+    private var credentialCache: [UUID: String?] = [:]
+
     init(
         context: ModelContext,
         keychain: KeychainStore = KeychainStore(),
@@ -58,12 +63,17 @@ final class FleetStore {
         )
         let records = (try? context.fetch(descriptor)) ?? []
         instances = records.map(\.fleetInstance)
-        let keychain = self.keychain
-        configuredInstanceIDs = Set(
-            instances
-                .filter { ((try? keychain.readSecret(for: $0.id)) ?? nil)?.isEmpty == false }
-                .map(\.id)
-        )
+        // Existence check only — attributes-only, so it does NOT decrypt the secret and never
+        // prompts (unlike readSecret).
+        configuredInstanceIDs = Set(instances.filter { keychain.exists(for: $0.id) }.map(\.id))
+    }
+
+    /// Reads a secret at most once per session, caching the result (including "none stored").
+    private func cachedSecret(for id: UUID) -> String? {
+        if let cached = credentialCache[id] { return cached }
+        let secret = (try? keychain.readSecret(for: id)) ?? nil
+        credentialCache[id] = secret
+        return secret
     }
 
     // MARK: Refresh (concurrent, spec §3.2 / §9.2)
@@ -72,12 +82,17 @@ final class FleetStore {
         isRefreshing = true
         defer { isRefreshing = false }
 
-        // Capture Sendable values so the credential closure never touches main-actor state.
-        let keychain = self.keychain
+        // Read every needed secret once (on the main actor, from the cache), then hand the
+        // credential closure a plain dictionary — so it never touches the Keychain (or main-actor
+        // state) off-thread, and the keychain prompt can't fire during the refresh loop.
+        var credentials: [UUID: String] = [:]
+        for instance in dashboardInstances {
+            if let secret = cachedSecret(for: instance.id) { credentials[instance.id] = secret }
+        }
         let results = await FleetRefresher.refresh(
             instances: dashboardInstances,
             factory: factory,
-            credential: { instance in (try? keychain.readSecret(for: instance.id)) ?? nil }
+            credential: { instance in credentials[instance.id] }
         )
         // Merge so instances not in this pass keep their previous status (spec §9.5).
         for (id, status) in results {
@@ -119,7 +134,7 @@ final class FleetStore {
     /// Builds a live service client for an instance if a secret is stored — used by detail screens
     /// to fetch the activity list. Returns `nil` when the instance is unconfigured or its URL is bad.
     func service(for instance: FleetInstance) -> (any FleetService)? {
-        guard let secret = (try? keychain.readSecret(for: instance.id)) ?? nil, !secret.isEmpty else {
+        guard let secret = cachedSecret(for: instance.id), !secret.isEmpty else {
             return nil
         }
         return try? factory.makeService(for: instance, credential: secret)
@@ -237,6 +252,7 @@ final class FleetStore {
 
         if let secret, !secret.isEmpty {
             try? keychain.save(secret, for: id)
+            credentialCache[id] = secret // cache the just-saved value; next refresh won't re-read
         }
         reload()
     }
@@ -250,6 +266,7 @@ final class FleetStore {
         try? context.save()
         try? keychain.delete(for: id)
         statuses[id] = nil
+        credentialCache.removeValue(forKey: id)
         Analytics.instanceRemoved(instance.serviceType)
         reload()
     }
