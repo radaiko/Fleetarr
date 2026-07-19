@@ -129,4 +129,26 @@ struct SeerrClientTests {
         let result = await client.testConnection()
         #expect(result == .success(version: "1.0.0"))
     }
+
+    @Test("Feature-detects the backing media server (spec §6.3)")
+    func detectsMediaServer() async throws {
+        let data = try Fixture.data("seerr_public_settings")
+        let client = SeerrClient(context: Fixture.context(transport: MockTransport(data: data)))
+        #expect(try await client.detectMediaServer() == .plex)
+    }
+
+    @Test("fetchStatus names the detected media server in the summary")
+    func fetchStatusNamesServer() async throws {
+        let count = try Fixture.data("seerr_request_count")
+        let settings = try Fixture.data("seerr_public_settings")
+        let status = try Fixture.data("seerr_status")
+        let transport = MockTransport { request in
+            let path = request.url?.path ?? ""
+            if path.hasSuffix("/settings/public") { return .response(status: 200, data: settings) }
+            if path.hasSuffix("/status") { return .response(status: 200, data: status) }
+            return .response(status: 200, data: count) // /request/count
+        }
+        let result = try await SeerrClient(context: Fixture.context(transport: transport)).fetchStatus()
+        #expect(result.summaryLine?.contains("Plex") == true)
+    }
 }

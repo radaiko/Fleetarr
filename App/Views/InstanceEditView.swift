@@ -11,6 +11,7 @@ enum InstanceEditMode {
 struct InstanceEditView: View {
     @Environment(FleetStore.self) private var store
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
 
     let mode: InstanceEditMode
 
@@ -28,6 +29,9 @@ struct InstanceEditView: View {
 
     @State private var testing = false
     @State private var testResult: ConnectionTestResult?
+
+    @State private var plexSigningIn = false
+    @State private var plexStatus: String?
 
     private var isEditing: Bool {
         if case .edit = mode { return true }
@@ -69,6 +73,31 @@ struct InstanceEditView: View {
                 } footer: {
                     if isEditing && hasStoredSecret {
                         Text("Leave the credential blank to keep the one already stored.")
+                    }
+                }
+
+                if serviceType == .plex {
+                    Section {
+                        Button {
+                            Task { await signInWithPlex() }
+                        } label: {
+                            HStack {
+                                Label("Sign in with Plex", systemImage: "person.badge.key")
+                                if plexSigningIn {
+                                    Spacer()
+                                    ProgressView()
+                                }
+                            }
+                        }
+                        .disabled(plexSigningIn)
+                        if let plexStatus {
+                            Text(plexStatus).font(.caption).foregroundStyle(.secondary)
+                        }
+                    } header: {
+                        Text("Plex account")
+                    } footer: {
+                        Text("Opens plex.tv to sign in; the token is filled in for you. You can also "
+                             + "paste a token above manually.")
                     }
                 }
 
@@ -172,6 +201,46 @@ struct InstanceEditView: View {
         guard let instance = draft else { return }
         store.save(instance, secret: secret.isEmpty ? nil : secret)
         dismiss()
+    }
+
+    // MARK: Plex sign-in (spec §6.5)
+
+    /// A stable per-install Plex client identifier, generated once.
+    private var plexClientIdentifier: String {
+        let key = "plexClientIdentifier"
+        if let existing = UserDefaults.standard.string(forKey: key) { return existing }
+        let identifier = UUID().uuidString
+        UserDefaults.standard.set(identifier, forKey: key)
+        return identifier
+    }
+
+    private func signInWithPlex() async {
+        plexSigningIn = true
+        plexStatus = "Requesting sign-in…"
+        defer { plexSigningIn = false }
+
+        let auth = PlexAuthClient(clientIdentifier: plexClientIdentifier)
+        do {
+            let pin = try await auth.requestPin()
+            if let url = auth.authURL(for: pin) {
+                openURL(url)
+            }
+            plexStatus = "Waiting for you to sign in to Plex…"
+            // Poll up to ~90s for the token.
+            for _ in 0..<45 {
+                try await Task.sleep(for: .seconds(2))
+                if let token = try await auth.fetchToken(pinID: pin.id) {
+                    secret = token
+                    plexStatus = "Signed in — token filled in."
+                    return
+                }
+            }
+            plexStatus = "Timed out waiting for sign-in. Try again."
+        } catch is CancellationError {
+            plexStatus = nil
+        } catch {
+            plexStatus = "Sign-in failed: \((error as? FleetError)?.userMessage ?? "please try again")."
+        }
     }
 }
 

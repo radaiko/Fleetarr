@@ -87,3 +87,26 @@ struct SeerrUser: Decodable {
         return "Unknown"
     }
 }
+
+/// The media server a Seerr instance is backed by (spec §6.3 — feature-detect, never assume).
+/// Note the enum values: PLEX=1, JELLYFIN=2, EMBY=3, NOT_CONFIGURED=4 (not 0).
+public enum SeerrMediaServer: Int, Sendable, Equatable {
+    case plex = 1
+    case jellyfin = 2
+    case emby = 3
+    case notConfigured = 4
+
+    public var displayName: String {
+        switch self {
+        case .plex: "Plex"
+        case .jellyfin: "Jellyfin"
+        case .emby: "Emby"
+        case .notConfigured: "Not configured"
+        }
+    }
+}
+
+/// `GET /api/v1/settings/public` (unauthenticated) — used to feature-detect the backing server.
+struct SeerrPublicSettings: Decodable {
+    let mediaServerType: Int?
+}

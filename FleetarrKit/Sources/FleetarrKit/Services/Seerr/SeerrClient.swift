@@ -44,9 +44,11 @@ public struct SeerrClient: FleetService {
     public func fetchStatus() async throws(FleetError) -> InstanceStatus {
         let count = try await fetchRequestCount()
         // The version comes from the unauthenticated /status probe; a failure there must not blank
-        // the tile (spec §9.5), so it is best-effort.
+        // the tile (spec §9.5), so it is best-effort. The backing media server is feature-detected
+        // rather than assumed (spec §6.3), also best-effort.
         let status = try? await fetchSystemStatus()
-        return buildStatus(count: count, status: status)
+        let mediaServer = (try? await detectMediaServer()) ?? nil
+        return buildStatus(count: count, status: status, mediaServer: mediaServer)
     }
 
     public func fetchActivity() async throws(FleetError) -> [ActivityItem] {
@@ -75,14 +77,18 @@ public struct SeerrClient: FleetService {
     ///
     /// Pending requests are activity, not problems, so `problems` is empty and — since a reachable
     /// Seerr is always `.healthy` here — the health state is fixed at `.healthy`.
-    func buildStatus(count: SeerrRequestCount, status: SeerrStatus?) -> InstanceStatus {
+    func buildStatus(
+        count: SeerrRequestCount,
+        status: SeerrStatus?,
+        mediaServer: SeerrMediaServer? = nil
+    ) -> InstanceStatus {
         let pending = count.pending ?? 0
 
         return InstanceStatus(
             health: .healthy,
             headline: buildHeadline(count: count, pending: pending),
             problems: [],
-            summaryLine: buildSummary(pending: pending),
+            summaryLine: buildSummary(pending: pending, mediaServer: mediaServer),
             serviceVersion: status?.version
         )
     }
@@ -105,12 +111,17 @@ public struct SeerrClient: FleetService {
         return chips
     }
 
-    private func buildSummary(pending: Int) -> String {
+    private func buildSummary(pending: Int, mediaServer: SeerrMediaServer?) -> String {
+        let requests: String
         switch pending {
-        case 0: return "No pending requests"
-        case 1: return "1 pending request"
-        default: return "\(pending) pending requests"
+        case 0: requests = "No pending requests"
+        case 1: requests = "1 pending request"
+        default: requests = "\(pending) pending requests"
         }
+        if let mediaServer, mediaServer != .notConfigured {
+            return "\(mediaServer.displayName) · \(requests)"
+        }
+        return requests
     }
 
     // MARK: Raw fetches
@@ -121,6 +132,17 @@ public struct SeerrClient: FleetService {
             path: Self.apiRoot + "/status",
             headers: authHeaders
         )
+    }
+
+    /// Feature-detects the backing media server (Plex/Jellyfin/Emby) via the public settings
+    /// endpoint (spec §6.3). Returns `nil` if the field is missing/unknown.
+    public func detectMediaServer() async throws(FleetError) -> SeerrMediaServer? {
+        let settings = try await context.fetchJSON(
+            SeerrPublicSettings.self,
+            path: Self.apiRoot + "/settings/public",
+            headers: authHeaders
+        )
+        return settings.mediaServerType.flatMap(SeerrMediaServer.init(rawValue:))
     }
 
     private func fetchRequestCount() async throws(FleetError) -> SeerrRequestCount {

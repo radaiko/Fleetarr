@@ -1,0 +1,8 @@
+{
+  "id": 123456789,
+  "code": "abcd",
+  "product": "Fleetarr",
+  "trusted": false,
+  "authToken": null,
+  "expiresIn": 1800
+}
