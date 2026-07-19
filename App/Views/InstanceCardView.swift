@@ -10,6 +10,10 @@ struct InstanceCardView: View {
     let instance: FleetInstance
     let status: InstanceStatus?
     let configured: Bool
+    /// The latest refresh couldn't reach the instance but we're still showing its last-known-good
+    /// data (spec §9.5) — rendered dimmed with an "offline" marker rather than blanked.
+    var stale: Bool = false
+    var lastUpdated: Date? = nil
 
     @Environment(\.colorScheme) private var colorScheme
     @State private var hovering = false
@@ -20,12 +24,12 @@ struct InstanceCardView: View {
 
     /// Whether the instance needs a second look — drives the tinted (vs. calm neutral) treatment.
     private var troubled: Bool {
-        !configured || health == .warning || health == .error || health == .unreachable
+        stale || !configured || health == .warning || health == .error || health == .unreachable
     }
 
     /// The one color that expresses this card's state (only used when `troubled`).
     private var accent: Color {
-        configured ? health.tint : .orange
+        (stale || !configured) ? .orange : health.tint
     }
 
     private var metricChips: [MetricChip] {
@@ -41,6 +45,7 @@ struct InstanceCardView: View {
                     ForEach(metricChips) { statPair($0) }
                     Spacer(minLength: 0)
                 }
+                .opacity(stale ? 0.5 : 1) // last-known-good numbers, shown dimmed while offline
             }
         }
         .padding(16)
@@ -95,7 +100,10 @@ struct InstanceCardView: View {
     }
 
     @ViewBuilder private var statusGlyph: some View {
-        if !configured {
+        if stale {
+            Image(systemName: "wifi.slash")
+                .foregroundStyle(.orange)
+        } else if !configured {
             Image(systemName: "minus.circle.fill")
                 .foregroundStyle(.orange)
         } else {
@@ -126,6 +134,12 @@ struct InstanceCardView: View {
     // MARK: Styling
 
     private var subtitle: String {
+        if stale {
+            if let last = lastUpdated {
+                return "Offline · \(last.formatted(.relative(presentation: .numeric, unitsStyle: .abbreviated)))"
+            }
+            return "Offline · showing last-known"
+        }
         if !configured { return "Not configured" }
         if let line = status?.summaryLine, !line.isEmpty { return line }
         return health == .unknown ? "Not checked yet" : health.displayLabel
@@ -159,7 +173,10 @@ struct InstanceCardView: View {
 
     private var accessibilityText: String {
         var parts = [instance.label, instance.serviceType.displayName]
-        if !configured {
+        if stale {
+            parts.append("offline, showing last-known data")
+            parts.append(contentsOf: metricChips.map { "\($0.value) \($0.label)" })
+        } else if !configured {
             parts.append("not configured")
         } else {
             parts.append(health.displayLabel)

@@ -26,6 +26,12 @@ final class FleetStore {
     private(set) var configuredInstanceIDs: Set<UUID> = []
     private(set) var isRefreshing = false
     private(set) var lastRefresh: Date?
+    /// Instance ids whose latest refresh couldn't reach them but which still hold a prior good
+    /// status — shown stale (last-known-good), not blanked (spec §9.5).
+    private(set) var staleInstanceIDs: Set<UUID> = []
+    /// When each instance's currently-held status was last successfully refreshed, for the
+    /// "updated …" / stale label. Seeded from the on-disk snapshot on launch.
+    private(set) var statusUpdatedAt: [UUID: Date] = [:]
 
     /// In-memory cache of decrypted secrets so the Keychain data is read at most once per instance
     /// per session — otherwise every refresh/reload re-triggers the macOS keychain-access prompt on
@@ -51,7 +57,20 @@ final class FleetStore {
         self.keychain = keychain
         self.factory = factory
         reload()
+        seedStatusesFromCache()
         observeRemoteChanges()
+    }
+
+    /// Seeds `statuses` from the last on-disk snapshot so the dashboard paints cached health +
+    /// summary immediately on launch, before the first live refresh returns (spec §3.3 first-paint,
+    /// §9.1). The snapshot lives in the App Group, is local-only, and carries no secrets.
+    private func seedStatusesFromCache() {
+        guard let snapshot = SharedSnapshotStore.read() else { return }
+        for snap in snapshot.instances where statuses[snap.id] == nil {
+            statuses[snap.id] = InstanceStatus(health: snap.health, summaryLine: snap.summaryLine)
+            statusUpdatedAt[snap.id] = snapshot.updatedAt
+        }
+        if lastRefresh == nil { lastRefresh = snapshot.updatedAt }
     }
 
     /// CloudKit mirroring persists imported changes and posts `NSPersistentStoreRemoteChange` when
@@ -158,6 +177,11 @@ final class FleetStore {
         instances = demo.map(\.0)
         statuses = Dictionary(uniqueKeysWithValues: demo.map { ($0.0.id, $0.1) })
         configuredInstanceIDs = Set(demo.map { $0.0.id })
+        // Mark one healthy instance stale/offline to exercise the last-known-good rendering (§9.5).
+        if let sonarr = demo.first(where: { $0.0.serviceType == .sonarr })?.0 {
+            staleInstanceIDs.insert(sonarr.id)
+            statusUpdatedAt[sonarr.id] = Date(timeIntervalSinceNow: -720)
+        }
         lastRefresh = .now
     }
     #endif
@@ -189,9 +213,20 @@ final class FleetStore {
             factory: factory,
             credential: { instance in credentials[instance.id] }
         )
-        // Merge so instances not in this pass keep their previous status (spec §9.5).
+        // Merge results. When a previously-healthy instance just went unreachable, keep its
+        // last-known-good status and mark it stale rather than blanking the tile's metrics — the
+        // user can still see what it last reported, clearly timestamped (spec §9.5). A genuine
+        // status change (or a first-ever unreachable, where there's nothing good to keep) replaces
+        // the tile as before. Instances not in this pass keep their previous status untouched.
         for (id, status) in results {
-            statuses[id] = status
+            if status.health == .unreachable,
+               let prior = statuses[id], prior.health != .unreachable, prior.health != .unknown {
+                staleInstanceIDs.insert(id)
+            } else {
+                statuses[id] = status
+                statusUpdatedAt[id] = .now
+                staleInstanceIDs.remove(id)
+            }
         }
         lastRefresh = .now
 
@@ -371,10 +406,35 @@ final class FleetStore {
         try? context.save()
         try? keychain.delete(for: id)
         statuses[id] = nil
+        staleInstanceIDs.remove(id)
+        statusUpdatedAt.removeValue(forKey: id)
         credentialCache.removeValue(forKey: id)
         Analytics.instanceRemoved(instance.serviceType)
         reload()
     }
+
+    /// Reorders instances and persists each one's new `sortOrder` (synced via CloudKit, spec §5).
+    func move(from source: IndexSet, to destination: Int) {
+        var ordered = instances
+        ordered.move(fromOffsets: source, toOffset: destination)
+        for (index, instance) in ordered.enumerated() {
+            let id = instance.id
+            let descriptor = FetchDescriptor<InstanceRecord>(predicate: #Predicate { $0.id == id })
+            if let record = try? context.fetch(descriptor).first, record.sortOrder != index {
+                record.sortOrder = index
+                record.updatedAt = .now
+            }
+        }
+        try? context.save()
+        reload()
+    }
+
+    /// Whether the tile is showing stale last-known-good data because the latest refresh couldn't
+    /// reach the instance (spec §9.5).
+    func isStale(_ instance: FleetInstance) -> Bool { staleInstanceIDs.contains(instance.id) }
+
+    /// When the status currently shown for this instance was last successfully refreshed.
+    func lastUpdated(for instance: FleetInstance) -> Date? { statusUpdatedAt[instance.id] }
 
     /// Whether a secret is stored for this instance (drives the "not configured" tile state).
     /// Uses the cached set computed on `reload`, so this never hits the Keychain during rendering.

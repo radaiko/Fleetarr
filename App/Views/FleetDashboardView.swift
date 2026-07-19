@@ -98,7 +98,9 @@ struct FleetDashboardView: View {
                     InstanceCardView(
                         instance: instance,
                         status: store.status(for: instance),
-                        configured: store.hasStoredSecret(for: instance)
+                        configured: store.hasStoredSecret(for: instance),
+                        stale: store.isStale(instance),
+                        lastUpdated: store.lastUpdated(for: instance)
                     )
                 }
                 .buttonStyle(.plain)
@@ -121,17 +123,20 @@ struct FleetDashboardView: View {
 
     private func isTroubled(_ instance: FleetInstance) -> Bool {
         guard store.hasStoredSecret(for: instance) else { return true }
+        if store.isStale(instance) { return true }
         return (store.status(for: instance)?.health ?? .unknown).isProblem
     }
 
     private func attentionScore(_ instance: FleetInstance) -> Int {
         let configured = store.hasStoredSecret(for: instance)
-        let health = configured ? (store.status(for: instance)?.health ?? .unknown) : .unknown
-        let badge = store.status(for: instance)?.badgeCount ?? 0
         // Higher = more attention. Unconfigured sits just above healthy so it's visible but not
-        // alarming; real problems (warning/error/unreachable) outrank it; badge count breaks ties.
-        let base = configured ? health.severityRank : (HealthState.healthy.severityRank + 1)
-        return base * 1000 + badge
+        // alarming; a stale/offline tile ranks like unreachable; real problems outrank the rest;
+        // badge count breaks ties.
+        guard configured else { return (HealthState.healthy.severityRank + 1) * 1000 }
+        if store.isStale(instance) { return HealthState.unreachable.severityRank * 1000 }
+        let health = store.status(for: instance)?.health ?? .unknown
+        let badge = store.status(for: instance)?.badgeCount ?? 0
+        return health.severityRank * 1000 + badge
     }
 
     // MARK: Empty state

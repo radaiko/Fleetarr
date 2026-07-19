@@ -6,6 +6,7 @@ import FleetarrKit
 /// service's own web UI.
 struct InstanceDetailView: View {
     @Environment(FleetStore.self) private var store
+    @AppStorage("upcomingLookaheadDays") private var lookaheadDays: Int = 7
     let instance: FleetInstance
 
     @State private var service: (any FleetService)?
@@ -131,7 +132,7 @@ struct InstanceDetailView: View {
         if let service {
             if let listing = service as? UpcomingListing {
                 LazyActivityDisclosure(title: "Upcoming", systemImage: "calendar") {
-                    await activityResult { try await listing.fetchUpcoming(days: 7) }
+                    await activityResult { try await listing.fetchUpcoming(days: lookaheadDays) }
                 }
             }
             if let listing = service as? MissingListing {

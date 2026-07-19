@@ -9,9 +9,15 @@ struct SettingsView: View {
     @AppStorage("analyticsEnabled") private var analyticsEnabled = true
 
     @AppStorage("appLockEnabled") private var appLockEnabled = false
+    @AppStorage("refreshIntervalSeconds") private var refreshInterval: Double = 60
+    @AppStorage("upcomingLookaheadDays") private var lookaheadDays: Int = 7
 
     @State private var showingAdd = false
     @State private var editingInstance: FleetInstance?
+
+    private let intervalOptions: [(String, Double)] = [
+        ("30 seconds", 30), ("1 minute", 60), ("2 minutes", 120), ("5 minutes", 300),
+    ]
 
     var body: some View {
         List {
@@ -28,12 +34,26 @@ struct SettingsView: View {
                         .buttonStyle(.plain)
                     }
                     .onDelete(perform: deleteInstances)
+                    .onMove { store.move(from: $0, to: $1) }
                 }
                 Button {
                     showingAdd = true
                 } label: {
                     Label("Add Instance", systemImage: "plus")
                 }
+            }
+
+            Section {
+                Picker("Auto-refresh every", selection: $refreshInterval) {
+                    ForEach(intervalOptions, id: \.1) { Text($0.0).tag($0.1) }
+                }
+                Stepper("Calendar look-ahead: ^[\(lookaheadDays) day](inflect: true)",
+                        value: $lookaheadDays, in: 1...30)
+            } header: {
+                Text("Dashboard")
+            } footer: {
+                Text("How often the fleet refreshes while open, and how far ahead Sonarr/Radarr "
+                     + "Upcoming looks.")
             }
 
             Section {
@@ -69,6 +89,13 @@ struct SettingsView: View {
             }
         }
         .navigationTitle("Settings")
+        #if os(iOS)
+        .toolbar {
+            if !store.instances.isEmpty {
+                ToolbarItem(placement: .topBarTrailing) { EditButton() }
+            }
+        }
+        #endif
         .sheet(isPresented: $showingAdd) {
             InstanceEditView(mode: .add)
         }
