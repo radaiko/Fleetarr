@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fleetarr</title>
+  <meta name="description" content="Fleetarr — a native iOS, iPadOS and macOS dashboard for your self-hosted media stack: Sonarr, Radarr, Prowlarr, Seerr, SABnzbd, Plex and Jellyfin.">
+  <link rel="icon" href="icon.png">
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #fff; --fg: #1d1d1f; --muted: #6e6e73; --border: #d2d2d7;
+      --accent: #2f6bff; --card: #f5f5f7;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #1c1c1e; --fg: #f5f5f7; --muted: #a1a1a6; --border: #38383a; --accent: #6f9bff; --card: #2c2c2e; }
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg); color: var(--fg); line-height: 1.6;
+      padding: 3rem 1.5rem; max-width: 680px; margin: 0 auto;
+    }
+    header { text-align: center; margin-bottom: 2.5rem; }
+    header img { width: 108px; height: 108px; border-radius: 24px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
+    h1 { font-size: 2.25rem; font-weight: 700; margin: 1rem 0 0.5rem; }
+    .tagline { color: var(--muted); font-size: 1.05rem; }
+    h2 { font-size: 1.15rem; font-weight: 600; margin-top: 2rem; margin-bottom: 0.5rem; }
+    p, li { font-size: 0.95rem; margin-bottom: 0.5rem; }
+    ul { list-style: none; }
+    .features li { padding-left: 1.5rem; position: relative; }
+    .features li::before { content: "\2713"; color: var(--accent); position: absolute; left: 0.15rem; font-weight: 700; }
+    .platforms { color: var(--muted); font-size: 0.9rem; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .links { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 1.25rem; }
+    .links a {
+      display: inline-block; padding: 0.5rem 1rem; border: 1px solid var(--border);
+      border-radius: 8px; background: var(--card);
+    }
+    hr { border: none; border-top: 1px solid var(--border); margin: 2.5rem 0; }
+    .footer { color: var(--muted); font-size: 0.8rem; text-align: center; }
+  </style>
+</head>
+<body>
+
+<header>
+  <img src="icon.png" alt="Fleetarr app icon" width="108" height="108">
+  <h1>Fleetarr</h1>
+  <p class="tagline">One dashboard for your self-hosted media stack.</p>
+</header>
+
+<h2>What is Fleetarr?</h2>
+<p>
+  Fleetarr is a native app for iOS, iPadOS and macOS that gives you an at-a-glance status and
+  activity dashboard across your self-hosted media automation stack &ndash; Sonarr, Radarr, Prowlarr,
+  Seerr, SABnzbd, Plex and Jellyfin. See what&rsquo;s healthy, what needs attention, and clear the
+  small, frequent problems right from your phone.
+</p>
+
+<h2>Features</h2>
+<ul class="features">
+  <li>Combined fleet health with a single at-a-glance problem count</li>
+  <li>Per-service detail: download queues, indexer status, pending requests, active streams, calendar and history</li>
+  <li>Quick actions &ndash; approve a request, remove a stuck download, stop a runaway stream, retry a failed grab</li>
+  <li>Works over Tailscale / WireGuard / LAN, with self-signed certs and reverse-proxy sub-paths</li>
+  <li>Your setup syncs across your devices via iCloud, end-to-end encrypted &ndash; keys stay in iCloud Keychain</li>
+  <li>Native and adaptive: light &amp; dark, Dynamic Type, VoiceOver, Home&nbsp;Screen widget and macOS menu&nbsp;bar</li>
+</ul>
+<p class="platforms">Available for iOS&nbsp;17+, iPadOS&nbsp;17+ and macOS&nbsp;14+.</p>
+
+<h2>Privacy</h2>
+<p>
+  Fleetarr talks only to your own services and keeps its configuration on your own devices. Your API
+  keys stay in iCloud Keychain (end-to-end encrypted), and usage analytics are fully anonymous.
+  Details are in the <a href="privacy.html">Privacy Policy</a>.
+</p>
+
+<div class="links">
+  <a href="privacy.html">Privacy</a>
+  <a href="https://github.com/radaiko/Fleetarr">GitHub</a>
+  <a href="mailto:a.radlingmayr@pm.me">Contact</a>
+</div>
+
+<hr>
+<p class="footer">&copy; 2026 Aiko Radlingmayr</p>
+
+</body>
+</html>

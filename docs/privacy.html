@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy – Fleetarr</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #fff; --fg: #1d1d1f; --muted: #6e6e73; --border: #d2d2d7; --accent: #2f6bff;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #1c1c1e; --fg: #f5f5f7; --muted: #a1a1a6; --border: #38383a; --accent: #6f9bff; }
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg); color: var(--fg); line-height: 1.6;
+      padding: 2rem 1.5rem; max-width: 680px; margin: 0 auto;
+    }
+    h1 { font-size: 1.75rem; font-weight: 700; margin-bottom: 0.25rem; }
+    h2 { font-size: 1.15rem; font-weight: 600; margin-top: 2rem; margin-bottom: 0.5rem; }
+    h3 { font-size: 1rem; font-weight: 600; margin-top: 1.25rem; margin-bottom: 0.4rem; }
+    p, li { font-size: 0.95rem; color: var(--fg); margin-bottom: 0.5rem; }
+    ul { padding-left: 1.25rem; margin-bottom: 0.75rem; }
+    .subtitle { color: var(--muted); font-size: 0.9rem; margin-bottom: 2rem; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code { font-size: 0.85em; background: color-mix(in srgb, var(--fg) 8%, transparent); padding: 0.1em 0.35em; border-radius: 4px; }
+    hr { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+    .footer { color: var(--muted); font-size: 0.8rem; margin-top: 2rem; text-align: center; }
+  </style>
+</head>
+<body>
+
+<h1>Privacy Policy</h1>
+<p class="subtitle">Fleetarr &ndash; iOS, iPadOS &amp; macOS app</p>
+
+<p>
+  Fleetarr is a native client that shows a unified status and activity dashboard for a
+  <strong>self-hosted media stack you already run</strong> (Sonarr, Radarr, Prowlarr, Seerr,
+  SABnzbd, Plex, Jellyfin). It is a monitoring tool: it talks to <em>your own</em> services and
+  keeps its configuration on <em>your own</em> devices. The operator receives essentially no
+  personal data &ndash; as detailed below.
+</p>
+
+<h2>1. Controller</h2>
+<p>
+  The operator of the &ldquo;Fleetarr&rdquo; app is Aiko Radlingmayr.<br>
+  Contact: <a href="mailto:a.radlingmayr@pm.me">a.radlingmayr@pm.me</a>
+</p>
+
+<h2>2. What data is processed?</h2>
+
+<h3>2.1 Service credentials</h3>
+<p>
+  The API keys, tokens and passwords for your media services are stored <strong>only in the device
+  Keychain</strong>. Unless you turn iCloud sync off in Settings, they are synchronised across your
+  own Apple devices via <strong>iCloud Keychain</strong>, which is <strong>end-to-end encrypted</strong>
+  to your personal trusted-device circle &ndash; the same mechanism that protects your Safari
+  passwords. Apple cannot read them, and <strong>the operator never receives them</strong>. They are
+  used solely to connect to the services you configured and are never transmitted to the operator or
+  any third party. They are never written to logs, analytics, or the synced configuration store.
+</p>
+
+<h3>2.2 Configuration &amp; preferences</h3>
+<p>
+  Non-secret settings &ndash; instance labels, base URLs, service type, enabled state, display order,
+  and dashboard preferences &ndash; are stored locally on the device (SwiftData). Unless you turn
+  iCloud sync off, they are synchronised across your own Apple devices via Apple&rsquo;s
+  <strong>CloudKit private database</strong>, held inside your personal iCloud account and
+  <strong>not accessible to the operator</strong>. A Settings toggle disables iCloud sync entirely,
+  keeping everything on the device.
+</p>
+
+<h3>2.3 Usage analytics</h3>
+<p>
+  The app collects <strong>anonymous usage statistics</strong> through a
+  <strong>self-hosted <a href="https://aptabase.com">Aptabase</a> instance</strong> on a server
+  operated by the operator, in order to improve the app. This data is <strong>not shared with any
+  third party</strong>.
+</p>
+<ul>
+  <li>Aptabase is a <strong>cookieless, privacy-friendly</strong> analytics service.</li>
+  <li><strong>No user or device identifiers, IP addresses or cookies</strong> are stored &ndash; the
+      events are anonymous and cannot be linked to a person (no personal data within the meaning of
+      the GDPR, Recital&nbsp;26).</li>
+  <li>Only <strong>event names</strong> and coarse technical fields (device model, operating-system
+      and app version, language) are recorded.</li>
+  <li><strong>No personal content</strong> is captured &ndash; in particular no API keys, media
+      titles, usernames, requester names, server hostnames or URLs, and no free-text error messages;
+      only enum-like categories and counts (e.g. <code>service_type: "sonarr"</code>, a problem
+      count).</li>
+  <li><strong>No cookies, advertising identifiers, location data or contact data</strong> are
+      collected.</li>
+  <li><strong>No session recordings</strong> are created.</li>
+  <li>A Settings toggle <strong>disables analytics entirely</strong>.</li>
+</ul>
+
+<h3>2.4 Network connections</h3>
+<p>
+  The app connects only to (a) the media services <strong>you</strong> have configured &ndash; to
+  read their status and activity and to carry out the actions you trigger (e.g. approving a request,
+  removing a stuck download, stopping a stream) &ndash; and (b) the operator&rsquo;s self-hosted
+  analytics endpoint. There are no connections to other third parties, no advertising, and no
+  tracking networks.
+</p>
+
+<h2>3. Legal basis</h2>
+<p>
+  The processing of anonymous usage data is based on the operator&rsquo;s legitimate interest in
+  improving the app (Art.&nbsp;6(1)(f)&nbsp;GDPR). Connections to your own media services are your
+  own use of those services, under your control; for the data those services hold, the respective
+  service is the controller.
+</p>
+
+<h2>4. Retention</h2>
+<ul>
+  <li><strong>Credentials &amp; configuration:</strong> until you delete them in the app or uninstall
+      the app.</li>
+  <li><strong>Analytics:</strong> no personal data is stored. Anonymous, aggregated statistics are
+      kept on the operator&rsquo;s self-hosted Aptabase server.</li>
+</ul>
+
+<h2>5. Your rights</h2>
+<p>
+  The operator itself stores <strong>no personal data</strong> about you: your credentials stay in
+  your own Keychain / iCloud (end-to-end encrypted) and the usage analytics are anonymous. You can
+  remove all locally stored data at any time by deleting it in the app or uninstalling. Rights
+  regarding data held by your media services (access, rectification, erasure) are exercised directly
+  with those services, which are responsible for them. You also have the right to lodge a complaint
+  with a data-protection supervisory authority.
+</p>
+<h3>5.1 Analytics data</h3>
+<p>
+  Because Aptabase collects and stores no personal data, individual erasure is neither possible nor
+  necessary: there is no analytics ID and no way to attribute stored data to a single person.
+</p>
+
+<h2>6. Contact</h2>
+<p>
+  For any privacy questions, reach us by email at
+  <a href="mailto:a.radlingmayr@pm.me">a.radlingmayr@pm.me</a> or via a
+  <a href="https://github.com/radaiko/Fleetarr/issues">GitHub issue</a>.
+</p>
+
+<hr>
+<p class="footer">Last updated: July 2026</p>
+
+</body>
+</html>

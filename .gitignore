@@ -19,3 +19,7 @@ Package.resolved
 *.p12
 *.mobileprovision
 Local.xcconfig
+
+# Release tooling
+tools/devops/.build-number   # monotonic CFBundleVersion counter (per-machine)
+dist/                        # local release artifacts
