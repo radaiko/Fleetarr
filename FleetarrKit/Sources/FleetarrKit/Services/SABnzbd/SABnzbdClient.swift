@@ -119,6 +119,13 @@ public struct SABnzbdClient: FleetService {
         if isPaused {
             chips.append(MetricChip(label: "Status", value: "Paused", systemImageName: "pause.circle", emphasis: .warning))
         }
+        // An active speed cap (SABnzbd reports `speedlimit` as a percentage of the configured max;
+        // empty / 0 / 100 all mean "unlimited"). Surface it so a throttled queue isn't mistaken for
+        // a slow one (spec §6.4).
+        if let limit = parseDouble(queue.speedlimit), limit > 0, limit < 100 {
+            chips.append(MetricChip(label: "Limit", value: "\(Int(limit))%",
+                                    systemImageName: "gauge.with.dots.needle.bottom.50percent"))
+        }
         if let free = parseDouble(queue.diskspace1) {
             chips.append(MetricChip(label: "Free", value: formatGB(free), systemImageName: "internaldrive"))
         }

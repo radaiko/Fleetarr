@@ -18,6 +18,9 @@ final class InstanceRecord {
     var allowInsecureTLS: Bool = false
     /// Codable-encoded `[String: String]`; dictionaries aren't a native CloudKit attribute type.
     var extraHeadersData: Data?
+    /// Codable-encoded `[String]` of SABnzbd cosmetic ignore substrings (spec §6.4). Optional so
+    /// this remains an additive, CloudKit-safe schema change (spec §3.5).
+    var cosmeticIgnorePatternsData: Data?
     var isEnabled: Bool = true
     var isHiddenFromDashboard: Bool = false
     var sortOrder: Int = 0
@@ -31,6 +34,7 @@ final class InstanceRecord {
         baseURLString: String = "",
         allowInsecureTLS: Bool = false,
         extraHeaders: [String: String] = [:],
+        cosmeticIgnorePatterns: [String] = [],
         isEnabled: Bool = true,
         isHiddenFromDashboard: Bool = false,
         sortOrder: Int = 0,
@@ -42,6 +46,7 @@ final class InstanceRecord {
         self.baseURLString = baseURLString
         self.allowInsecureTLS = allowInsecureTLS
         self.extraHeadersData = Self.encodeHeaders(extraHeaders)
+        self.cosmeticIgnorePatternsData = Self.encodePatterns(cosmeticIgnorePatterns)
         self.isEnabled = isEnabled
         self.isHiddenFromDashboard = isHiddenFromDashboard
         self.sortOrder = sortOrder
@@ -67,6 +72,20 @@ final class InstanceRecord {
         headers.isEmpty ? nil : try? JSONEncoder().encode(headers)
     }
 
+    var cosmeticIgnorePatterns: [String] {
+        get {
+            guard let data = cosmeticIgnorePatternsData,
+                  let decoded = try? JSONDecoder().decode([String].self, from: data)
+            else { return [] }
+            return decoded
+        }
+        set { cosmeticIgnorePatternsData = Self.encodePatterns(newValue) }
+    }
+
+    private static func encodePatterns(_ patterns: [String]) -> Data? {
+        patterns.isEmpty ? nil : try? JSONEncoder().encode(patterns)
+    }
+
     // MARK: Mapping to/from the kit's pure value type
 
     var fleetInstance: FleetInstance {
@@ -77,6 +96,7 @@ final class InstanceRecord {
             baseURLString: baseURLString,
             allowInsecureTLS: allowInsecureTLS,
             extraHeaders: extraHeaders,
+            cosmeticIgnorePatterns: cosmeticIgnorePatterns,
             isEnabled: isEnabled,
             isHiddenFromDashboard: isHiddenFromDashboard,
             sortOrder: sortOrder
@@ -89,6 +109,7 @@ final class InstanceRecord {
         baseURLString = instance.baseURLString
         allowInsecureTLS = instance.allowInsecureTLS
         extraHeaders = instance.extraHeaders
+        cosmeticIgnorePatterns = instance.cosmeticIgnorePatterns
         isEnabled = instance.isEnabled
         isHiddenFromDashboard = instance.isHiddenFromDashboard
         sortOrder = instance.sortOrder
@@ -102,6 +123,7 @@ final class InstanceRecord {
             baseURLString: instance.baseURLString,
             allowInsecureTLS: instance.allowInsecureTLS,
             extraHeaders: instance.extraHeaders,
+            cosmeticIgnorePatterns: instance.cosmeticIgnorePatterns,
             isEnabled: instance.isEnabled,
             isHiddenFromDashboard: instance.isHiddenFromDashboard,
             sortOrder: instance.sortOrder

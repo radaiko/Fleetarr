@@ -22,6 +22,8 @@ struct InstanceEditView: View {
     @State private var allowInsecureTLS = false
     @State private var isEnabled = true
     @State private var isHidden = false
+    @State private var headers: [HeaderField] = []
+    @State private var ignorePatterns: [PatternField] = []
 
     @State private var existingID: UUID?
     @State private var existingSortOrder = 0
@@ -102,6 +104,52 @@ struct InstanceEditView: View {
                 }
 
                 Section {
+                    ForEach($headers) { $header in
+                        HStack(spacing: 8) {
+                            TextField("Header", text: $header.key)
+                                .frame(maxWidth: 130, alignment: .leading)
+                            Divider()
+                            TextField("Value", text: $header.value)
+                        }
+                        #if os(iOS)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        #endif
+                    }
+                    .onDelete { headers.remove(atOffsets: $0) }
+                    Button { headers.append(HeaderField()) } label: {
+                        Label("Add header", systemImage: "plus")
+                    }
+                } header: {
+                    Text("Custom headers")
+                } footer: {
+                    Text("Static headers sent with every request — e.g. HTTP Basic auth or a header "
+                         + "your reverse proxy requires. Don't put the service API key here.")
+                }
+
+                if serviceType == .sabnzbd {
+                    Section {
+                        ForEach($ignorePatterns) { $pattern in
+                            TextField("Warning text to ignore", text: $pattern.text)
+                                #if os(iOS)
+                                .textInputAutocapitalization(.never)
+                                .autocorrectionDisabled()
+                                #endif
+                        }
+                        .onDelete { ignorePatterns.remove(atOffsets: $0) }
+                        Button { ignorePatterns.append(PatternField()) } label: {
+                            Label("Add pattern", systemImage: "plus")
+                        }
+                    } header: {
+                        Text("Cosmetic ignore list")
+                    } footer: {
+                        Text("Case-insensitive text; SABnzbd warnings containing any of these won't "
+                             + "count toward the problem badge. The built-in \"non-writable "
+                             + "special-character filename\" warning is always ignored.")
+                    }
+                }
+
+                Section {
                     Toggle("Enabled", isOn: $isEnabled)
                     Toggle("Hide from dashboard", isOn: $isHidden)
                 }
@@ -157,6 +205,16 @@ struct InstanceEditView: View {
     private var draft: FleetInstance? {
         let trimmedURL = baseURLString.trimmingCharacters(in: .whitespaces)
         guard !trimmedURL.isEmpty else { return nil }
+        let headerDict = Dictionary(
+            headers.compactMap { row -> (String, String)? in
+                let key = row.key.trimmingCharacters(in: .whitespaces)
+                return key.isEmpty ? nil : (key, row.value)
+            },
+            uniquingKeysWith: { _, last in last }
+        )
+        let patterns = ignorePatterns
+            .map { $0.text.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
         let instance = FleetInstance(
             id: existingID ?? UUID(),
             serviceType: serviceType,
@@ -165,6 +223,8 @@ struct InstanceEditView: View {
                 : label.trimmingCharacters(in: .whitespaces),
             baseURLString: trimmedURL,
             allowInsecureTLS: allowInsecureTLS,
+            extraHeaders: headerDict,
+            cosmeticIgnorePatterns: serviceType == .sabnzbd ? patterns : [],
             isEnabled: isEnabled,
             isHiddenFromDashboard: isHidden,
             sortOrder: existingSortOrder
@@ -188,6 +248,10 @@ struct InstanceEditView: View {
         existingID = instance.id
         existingSortOrder = instance.sortOrder
         hasStoredSecret = store.hasStoredSecret(for: instance)
+        headers = instance.extraHeaders
+            .sorted { $0.key < $1.key }
+            .map { HeaderField(key: $0.key, value: $0.value) }
+        ignorePatterns = instance.cosmeticIgnorePatterns.map { PatternField(text: $0) }
     }
 
     /// Credentials pasted from a web dashboard often carry a trailing newline/space, which servers
@@ -248,6 +312,23 @@ struct InstanceEditView: View {
             plexStatus = "Sign-in failed: \((error as? FleetError)?.userMessage ?? "please try again")."
         }
     }
+}
+
+/// An editable custom-header row (spec §4). Identity is stable across edits so SwiftUI keeps focus.
+private struct HeaderField: Identifiable, Equatable {
+    let id: UUID
+    var key: String
+    var value: String
+    init(id: UUID = UUID(), key: String = "", value: String = "") {
+        self.id = id; self.key = key; self.value = value
+    }
+}
+
+/// An editable SABnzbd cosmetic-ignore pattern row (spec §6.4).
+private struct PatternField: Identifiable, Equatable {
+    let id: UUID
+    var text: String
+    init(id: UUID = UUID(), text: String = "") { self.id = id; self.text = text }
 }
 
 private struct TestResultRow: View {

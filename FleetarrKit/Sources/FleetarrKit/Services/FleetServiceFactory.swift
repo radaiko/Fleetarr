@@ -25,7 +25,7 @@ public struct DefaultFleetServiceFactory: FleetServiceFactory {
         case .seerr:
             return SeerrClient(context: context)
         case .sabnzbd:
-            return SABnzbdClient(context: context)
+            return SABnzbdClient(context: context, cosmeticIgnorePatterns: instance.cosmeticIgnorePatterns)
         case .plex:
             return PlexClient(context: context)
         case .jellyfin:

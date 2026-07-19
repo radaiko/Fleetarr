@@ -65,5 +65,6 @@ enum Analytics {
         case sessionTerminated = "session_terminated"
         case downloadsPaused = "downloads_paused"
         case downloadsResumed = "downloads_resumed"
+        case downloadRetried = "download_retried"
     }
 }

@@ -102,11 +102,19 @@ public struct SeerrClient: FleetService {
                 emphasis: pending > 0 ? .warning : .normal
             )
         ]
-        if let processing = count.processing {
-            chips.append(MetricChip(label: "Processing", value: "\(processing)", systemImageName: "arrow.triangle.2.circlepath"))
+        // Show all four spec §6.3 statuses (pending / approved / available / declined) plus
+        // processing. Pending leads (it's the actionable one); the card shows the first three.
+        if let approved = count.approved {
+            chips.append(MetricChip(label: "Approved", value: "\(approved)", systemImageName: "checkmark.seal"))
         }
         if let available = count.available {
             chips.append(MetricChip(label: "Available", value: "\(available)", systemImageName: "checkmark.circle"))
+        }
+        if let processing = count.processing {
+            chips.append(MetricChip(label: "Processing", value: "\(processing)", systemImageName: "arrow.triangle.2.circlepath"))
+        }
+        if let declined = count.declined {
+            chips.append(MetricChip(label: "Declined", value: "\(declined)", systemImageName: "xmark.circle"))
         }
         return chips
     }

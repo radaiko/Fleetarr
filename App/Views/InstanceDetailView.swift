@@ -141,7 +141,13 @@ struct InstanceDetailView: View {
                 }
             }
             if let listing = service as? HistoryListing {
-                LazyActivityDisclosure(title: "History", systemImage: "clock.arrow.circlepath") {
+                LazyActivityDisclosure(
+                    title: "History",
+                    systemImage: "clock.arrow.circlepath",
+                    onRetry: instance.serviceType.supportsDownloadControl
+                        ? { item in run { await store.retryFailedItem(item, on: instance) } }
+                        : nil
+                ) {
                     await activityResult { try await listing.fetchRecentHistory() }
                 }
             }
@@ -182,6 +188,14 @@ struct InstanceDetailView: View {
                 .tint(.orange)
             }
         }
+        if type.supportsDownloadControl, item.severity == .error {
+            Button {
+                run { await store.retryFailedItem(item, on: instance) }
+            } label: {
+                Label("Retry", systemImage: "arrow.clockwise")
+            }
+            .tint(.blue)
+        }
         if type.supportsSessionTermination {
             Button(role: .destructive) {
                 pendingConfirmation = .stop(item)
@@ -210,12 +224,13 @@ struct InstanceDetailView: View {
             .tint(.green)
         }
         if type.supportsDownloadControl {
+            let paused = (item.status ?? "").lowercased().contains("pause")
             Button {
-                run { await store.setItemPaused(true, item, on: instance) }
+                run { await store.setItemPaused(!paused, item, on: instance) }
             } label: {
-                Label("Pause", systemImage: "pause")
+                Label(paused ? "Resume" : "Pause", systemImage: paused ? "play.fill" : "pause.fill")
             }
-            .tint(.orange)
+            .tint(paused ? .green : .orange)
         }
     }
 
@@ -276,6 +291,9 @@ private func activityResult(
 private struct LazyActivityDisclosure: View {
     let title: String
     let systemImage: String
+    /// When set, failed (`.error`) rows get a "Retry" swipe action — used for SABnzbd History
+    /// so a failed download can be re-tried in place (spec §6.4).
+    var onRetry: ((ActivityItem) -> Void)? = nil
     let load: () async -> Result<[ActivityItem], FleetError>
 
     @State private var expanded = false
@@ -314,7 +332,19 @@ private struct LazyActivityDisclosure: View {
             if items.isEmpty {
                 Text("Nothing here").font(.caption).foregroundStyle(.secondary)
             } else {
-                ForEach(items) { ActivityRow(item: $0) }
+                ForEach(items) { item in
+                    ActivityRow(item: item)
+                        .swipeActions(edge: .trailing) {
+                            if let onRetry, item.severity == .error {
+                                Button {
+                                    onRetry(item)
+                                } label: {
+                                    Label("Retry", systemImage: "arrow.clockwise")
+                                }
+                                .tint(.blue)
+                            }
+                        }
+                }
             }
         case .failed(let error):
             Label(error.userMessage, systemImage: "exclamationmark.triangle")

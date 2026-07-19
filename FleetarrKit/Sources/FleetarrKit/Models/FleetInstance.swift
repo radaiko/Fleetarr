@@ -20,6 +20,10 @@ public struct FleetInstance: Sendable, Identifiable, Equatable, Codable, Hashabl
     /// Static headers to inject (HTTP Basic, reverse-proxy headers). Never contains the service
     /// credential itself. Values are secrets-adjacent and must not be logged (spec §4).
     public var extraHeaders: [String: String]
+    /// User-added cosmetic warning substrings for SABnzbd, folded into the classifier's defaults so
+    /// server-specific "noise" warnings don't count toward the problem badge (spec §6.4). Empty for
+    /// non-SABnzbd instances.
+    public var cosmeticIgnorePatterns: [String]
     /// Whether the instance participates in refreshes and appears on the dashboard.
     public var isEnabled: Bool
     /// Hidden from the dashboard without being deleted (spec §5). Still refreshable from detail.
@@ -34,6 +38,7 @@ public struct FleetInstance: Sendable, Identifiable, Equatable, Codable, Hashabl
         baseURLString: String,
         allowInsecureTLS: Bool = false,
         extraHeaders: [String: String] = [:],
+        cosmeticIgnorePatterns: [String] = [],
         isEnabled: Bool = true,
         isHiddenFromDashboard: Bool = false,
         sortOrder: Int = 0
@@ -44,6 +49,7 @@ public struct FleetInstance: Sendable, Identifiable, Equatable, Codable, Hashabl
         self.baseURLString = baseURLString
         self.allowInsecureTLS = allowInsecureTLS
         self.extraHeaders = extraHeaders
+        self.cosmeticIgnorePatterns = cosmeticIgnorePatterns
         self.isEnabled = isEnabled
         self.isHiddenFromDashboard = isHiddenFromDashboard
         self.sortOrder = sortOrder

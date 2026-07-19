@@ -343,6 +343,15 @@ final class FleetStore {
         }
     }
 
+    func retryFailedItem(_ item: ActivityItem, on instance: FleetInstance) async -> FleetError? {
+        await runAction(on: instance, event: .downloadRetried) { service in
+            guard let service = service as? DownloadControlling else {
+                throw FleetError.transport("Not supported by this service")
+            }
+            try await service.retryFailedItem(id: item.id)
+        }
+    }
+
     func approveRequest(_ item: ActivityItem, on instance: FleetInstance) async -> FleetError? {
         await runAction(on: instance, event: .requestApproved) { service in
             guard let service = service as? RequestApproving else {
