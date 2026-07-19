@@ -5,7 +5,7 @@ import Foundation
 /// This is what a tile renders: a health state, a row of headline metric chips, and the list of
 /// problems the refresh surfaced. Detailed activity (queue items, sessions, requests) is fetched
 /// separately by the detail screen; see ``FleetService/fetchActivity()``.
-public struct InstanceStatus: Sendable, Equatable {
+public struct InstanceStatus: Sendable, Equatable, Codable {
     public var health: HealthState
     /// Headline metric chips for the tile, in display order (spec §5).
     public var headline: [MetricChip]

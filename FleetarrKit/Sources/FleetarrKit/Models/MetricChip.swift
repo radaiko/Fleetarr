@@ -9,9 +9,9 @@ import Foundation
 /// - Seerr: `pending`
 /// - SABnzbd: `speed`, `queue`, plus a paused/failed flag
 /// - Plex/Jellyfin: `streams`
-public struct MetricChip: Sendable, Equatable, Identifiable, Hashable {
+public struct MetricChip: Sendable, Equatable, Identifiable, Hashable, Codable {
     /// Visual emphasis, paired with an icon/text so it never relies on color alone (spec §9.6).
-    public enum Emphasis: Int, Sendable, Hashable {
+    public enum Emphasis: Int, Sendable, Hashable, Codable {
         case normal
         case warning
         case error

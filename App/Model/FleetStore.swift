@@ -66,20 +66,38 @@ final class FleetStore {
         self.keychain = keychain
         self.factory = factory
         reload()
+        migrateKeychainSyncState()
         seedStatusesFromCache()
         observeRemoteChanges()
+    }
+
+    /// Re-homes every instance's Keychain secret to match the current iCloud-sync preference (the
+    /// keychain is built with `synchronizable` set from it, spec §3.3), so turning sync off actually
+    /// stops API keys from travelling via iCloud Keychain — not just for future saves. Cheap and
+    /// idempotent: a no-op for any secret already in the right state.
+    private func migrateKeychainSyncState() {
+        for instance in instances {
+            keychain.setSynchronizable(keychain.synchronizable, for: instance.id)
+        }
     }
 
     /// Seeds `statuses` from the last on-disk snapshot so the dashboard paints cached health +
     /// summary immediately on launch, before the first live refresh returns (spec §3.3 first-paint,
     /// §9.1). The snapshot lives in the App Group, is local-only, and carries no secrets.
     private func seedStatusesFromCache() {
-        guard let snapshot = SharedSnapshotStore.read() else { return }
-        for snap in snapshot.instances where statuses[snap.id] == nil {
-            statuses[snap.id] = InstanceStatus(health: snap.health, summaryLine: snap.summaryLine)
-            statusUpdatedAt[snap.id] = snapshot.updatedAt
+        let snapshot = SharedSnapshotStore.read()
+        // Prefer the full on-disk status cache (health + metric chips + problems) so tiles paint
+        // complete on launch; fall back to the widget snapshot (health + summary only) for anything
+        // the full cache doesn't cover.
+        for (id, status) in StatusCache.read() where statuses[id] == nil {
+            statuses[id] = status
+            if let updatedAt = snapshot?.updatedAt { statusUpdatedAt[id] = updatedAt }
         }
-        if lastRefresh == nil { lastRefresh = snapshot.updatedAt }
+        for snap in snapshot?.instances ?? [] where statuses[snap.id] == nil {
+            statuses[snap.id] = InstanceStatus(health: snap.health, summaryLine: snap.summaryLine)
+            statusUpdatedAt[snap.id] = snapshot?.updatedAt ?? .now
+        }
+        if lastRefresh == nil { lastRefresh = snapshot?.updatedAt }
     }
 
     /// CloudKit mirroring persists imported changes and posts `NSPersistentStoreRemoteChange` when
@@ -296,6 +314,7 @@ final class FleetStore {
         if badge > 0 { Analytics.problemBadgeShown(count: badge) }
 
         writeSnapshot()
+        StatusCache.write(statuses) // full last-known status for the next launch's first paint (§3.3)
         updateAppBadge()
     }
 
@@ -564,5 +583,38 @@ final class FleetStore {
     /// Uses the cached set computed on `reload`, so this never hits the Keychain during rendering.
     func hasStoredSecret(for instance: FleetInstance) -> Bool {
         configuredInstanceIDs.contains(instance.id)
+    }
+}
+
+/// A local-only, on-disk cache of the last-known ``InstanceStatus`` per instance, so the dashboard
+/// paints full tiles (health, metric chips, problems) immediately on launch rather than blank until
+/// the first refresh completes (spec §3.3, §9.1). Lives in the App Group container and deliberately
+/// does **not** sync via iCloud: it's live data every device fetches first-hand, so only the
+/// configuration that produces it needs to travel (spec §3.5). Kept in this file (not its own) so a
+/// new source file needn't be added to the xcodegen project while Xcode is open.
+enum StatusCache {
+    private static let appGroupID = "group.dev.radaiko.Fleetarr"
+    private static let fileName = "status-cache.json"
+
+    private static var fileURL: URL? {
+        FileManager.default
+            .containerURL(forSecurityApplicationGroupIdentifier: appGroupID)?
+            .appendingPathComponent(fileName)
+    }
+
+    static func write(_ statuses: [UUID: InstanceStatus]) {
+        let keyed = Dictionary(uniqueKeysWithValues: statuses.map { ($0.key.uuidString, $0.value) })
+        guard let url = fileURL, let data = try? JSONEncoder().encode(keyed) else { return }
+        try? data.write(to: url, options: .atomic)
+    }
+
+    static func read() -> [UUID: InstanceStatus] {
+        guard let url = fileURL,
+              let data = try? Data(contentsOf: url),
+              let decoded = try? JSONDecoder().decode([String: InstanceStatus].self, from: data)
+        else { return [:] }
+        return Dictionary(uniqueKeysWithValues: decoded.compactMap { key, value in
+            UUID(uuidString: key).map { ($0, value) }
+        })
     }
 }

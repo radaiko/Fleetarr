@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import FleetarrKit
 
 @main
 struct FleetarrApp: App {
@@ -11,7 +12,12 @@ struct FleetarrApp: App {
         let syncEnabled = UserDefaults.standard.object(forKey: "syncEnabled") as? Bool ?? true
         let container = Persistence.makeContainer(syncEnabled: syncEnabled)
         _container = State(initialValue: container)
-        let store = FleetStore(context: container.mainContext)
+        // The Keychain's iCloud-sync state mirrors the sync preference so API keys stop travelling
+        // via iCloud Keychain when the user turns sync off (spec §3.3).
+        let store = FleetStore(
+            context: container.mainContext,
+            keychain: KeychainStore(synchronizable: syncEnabled)
+        )
         #if DEBUG
         // `--demo` seeds representative multi-state data for design work / screenshots (no network,
         // no store writes). Never present in release builds.

@@ -52,11 +52,31 @@ public struct KeychainStore: Sendable {
     }
 
     public func exists(account: String) -> Bool {
-        var query = baseQuery(account: account, synchronizable: nil)
+        exists(account: account, synchronizable: nil)
+    }
+
+    /// Whether an item exists for this account in a specific iCloud-sync state (`nil` = either).
+    /// Attributes-only, so it never triggers the keychain-access prompt.
+    public func exists(account: String, synchronizable: Bool?) -> Bool {
+        var query = baseQuery(account: account, synchronizable: synchronizable)
         query[kSecMatchLimit as String] = kSecMatchLimitOne
         query[kSecReturnAttributes as String] = kCFBooleanTrue // attributes only — no data, no prompt
         var result: CFTypeRef?
         return SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess
+    }
+
+    /// Re-homes an instance's secret to the desired iCloud-Keychain sync state (spec §3.3): when a
+    /// variant in the opposite state exists, it reads the secret, removes every stored variant, and
+    /// re-saves it in the desired state. A no-op when nothing is stored or it's already in the
+    /// desired state, so it's safe to run on every launch — this is what makes turning iCloud sync
+    /// off actually stop API keys from travelling via iCloud Keychain (not just future saves).
+    public func setSynchronizable(_ desired: Bool, for id: UUID) {
+        let account = id.uuidString
+        guard exists(account: account, synchronizable: !desired) else { return }
+        guard let secret = (try? readSecret(account: account)) ?? nil,
+              let data = secret.data(using: .utf8) else { return }
+        try? delete(account: account)
+        try? write(data, account: account, synchronizable: desired)
     }
 
     // MARK: Account-keyed operations
