@@ -25,6 +25,12 @@
     header img { width: 108px; height: 108px; border-radius: 24px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
     h1 { font-size: 2.25rem; font-weight: 700; margin: 1rem 0 0.5rem; }
     .tagline { color: var(--muted); font-size: 1.05rem; }
+    .cta {
+      display: inline-block; margin-top: 1.25rem; padding: 0.6rem 1.4rem;
+      background: var(--accent); color: #fff; border-radius: 10px; font-weight: 600;
+    }
+    .cta:hover { text-decoration: none; opacity: 0.92; }
+    .cta-note { color: var(--muted); font-size: 0.8rem; margin-top: 0.4rem; }
     h2 { font-size: 1.15rem; font-weight: 600; margin-top: 2rem; margin-bottom: 0.5rem; }
     p, li { font-size: 0.95rem; margin-bottom: 0.5rem; }
     ul { list-style: none; }
@@ -48,6 +54,8 @@
   <img src="icon.png" alt="Fleetarr app icon" width="108" height="108">
   <h1>Fleetarr</h1>
   <p class="tagline">One dashboard for your self-hosted media stack.</p>
+  <a class="cta" href="https://testflight.apple.com/join/xYh65sgD">Join the TestFlight beta</a>
+  <p class="cta-note">Public beta on iPhone, iPad &amp; Mac &middot; requires TestFlight</p>
 </header>
 
 <h2>What is Fleetarr?</h2>
@@ -77,6 +85,7 @@
 </p>
 
 <div class="links">
+  <a href="https://testflight.apple.com/join/xYh65sgD">TestFlight beta</a>
   <a href="privacy.html">Privacy</a>
   <a href="https://github.com/radaiko/Fleetarr">GitHub</a>
   <a href="mailto:aiko@spitzbub.app">Contact</a>
