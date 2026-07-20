@@ -62,6 +62,8 @@ targets:
         # (Xcode registers the Mac + provisions the profile). Until then, CLI macOS *signed* builds
         # fail; CODE_SIGNING_ALLOWED=NO verification builds still work.
         CODE_SIGN_ENTITLEMENTS: App/Fleetarr.entitlements
+        # macOS needs the App Sandbox (+ network client) for the Mac App Store; iOS uses the file above.
+        CODE_SIGN_ENTITLEMENTS[sdk=macosx*]: App/Fleetarr-macOS.entitlements
 
   FleetarrWidget:
     type: app-extension
@@ -85,3 +87,4 @@ targets:
         PRODUCT_MODULE_NAME: FleetarrWidgetExtension
         SKIP_INSTALL: YES
         CODE_SIGN_ENTITLEMENTS: App/FleetarrWidget.entitlements
+        CODE_SIGN_ENTITLEMENTS[sdk=macosx*]: App/FleetarrWidget-macOS.entitlements
